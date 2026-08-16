@@ -1,13 +1,14 @@
 import type { ClosetItem, SavedOutfit, Collection } from '../types'
 
 const DB_NAME = 'fitcheck-v1'
+const DB_VERSION = 2
 
 function openDB(): Promise<IDBDatabase> {
   return new Promise((res, rej) => {
-    const req = indexedDB.open(DB_NAME, 1)
+    const req = indexedDB.open(DB_NAME, DB_VERSION)
     req.onupgradeneeded = () => {
       const db = req.result
-      ;['items', 'saved', 'collections'].forEach(s => {
+      ;['items', 'saved', 'collections', 'planner'].forEach(s => {
         if (!db.objectStoreNames.contains(s)) db.createObjectStore(s, { keyPath: 'id' })
       })
     }
@@ -52,6 +53,7 @@ let _items: ClosetItem[] = []
 let _saved: SavedOutfit[] = []
 let _collections: Collection[] = []
 let _pairings: Record<string, number> = {}
+let _planner: Record<string, string> = {} // date (YYYY-MM-DD) -> outfitId
 let _initPromise: Promise<void> | null = null
 
 function getDB(): Promise<IDBDatabase> {
@@ -65,6 +67,9 @@ async function _doInit(): Promise<void> {
   _items.sort((a, b) => b.createdAt - a.createdAt)
   _saved = await idbGetAll<SavedOutfit>(db, 'saved')
   _collections = await idbGetAll<Collection>(db, 'collections')
+  const plannerEntries = await idbGetAll<{ id: string; outfitId: string }>(db, 'planner')
+  _planner = {}
+  plannerEntries.forEach(e => { _planner[e.id] = e.outfitId })
 
   try {
     const oldItems = localStorage.getItem('fitcheck:items')
@@ -146,6 +151,18 @@ export const storage = {
   },
   getPairings: () => _pairings,
   getPairingScore: (a: string, b: string) => _pairings[`${a}:${b}`] || _pairings[`${b}:${a}`] || 0,
+
+  getPlanner: () => ({ ..._planner }),
+  setPlannerEntry: (date: string, outfitId: string) => {
+    _planner = { ..._planner, [date]: outfitId }
+    getDB().then(db => idbPut(db, 'planner', { id: date, outfitId })).catch(() => undefined)
+  },
+  removePlannerEntry: (date: string) => {
+    const next = { ..._planner }
+    delete next[date]
+    _planner = next
+    getDB().then(db => idbDel(db, 'planner', date)).catch(() => undefined)
+  },
 
   getTheme: (): 'light' | 'dark' => { try { return (localStorage.getItem('fitcheck:theme') as 'light' | 'dark') || 'light' } catch (_e) { return 'light' } },
   setTheme: (t: string) => { try { localStorage.setItem('fitcheck:theme', t) } catch (_e) { /* ignore */ } },

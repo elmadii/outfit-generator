@@ -2,11 +2,11 @@ import { NavLink } from 'react-router-dom'
 
 const LINKS = [
   { to: '/', label: '🏠', title: 'Home' },
-  { to: '/upload', label: '📸', title: 'Upload' },
   { to: '/closet', label: '👗', title: 'Closet' },
   { to: '/generate', label: '✨', title: 'Generate' },
   { to: '/arcade', label: '🎮', title: 'Arcade' },
   { to: '/saved', label: '❤️', title: 'Saved' },
+  { to: '/planner', label: '📅', title: 'Plan' },
 ]
 
 export default function Nav() {

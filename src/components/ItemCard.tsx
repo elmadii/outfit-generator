@@ -33,11 +33,11 @@ export default function ItemCard({ item, onClick, onDelete, compact, selected }:
         .filter(Boolean)
         .join(' ')}
     >
-      <div className={compact ? 'aspect-square' : 'aspect-[3/4]'}>
+      <div className={`${compact ? 'aspect-square' : 'aspect-[3/4]'} bg-neutral-50 dark:bg-neutral-800`}>
         <img
           src={item.image}
           alt={item.name}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-contain"
           loading="lazy"
         />
       </div>
