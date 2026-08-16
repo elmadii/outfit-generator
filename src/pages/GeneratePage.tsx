@@ -167,9 +167,6 @@ export default function GeneratePage() {
               <div className="w-10 h-1 bg-neutral-200 dark:bg-neutral-700 rounded-full mx-auto mb-5" />
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-extrabold text-xl">{detail.vibeName}</h3>
-                <span className={`font-bold text-lg ${detail.score >= 85 ? 'text-green-500' : detail.score >= 70 ? 'text-yellow-500' : 'text-rose-400'}`}>
-                  {detail.score}/100
-                </span>
               </div>
 
               <div className="grid grid-cols-3 gap-1 mb-4 rounded-2xl overflow-hidden">

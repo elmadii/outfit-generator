@@ -88,7 +88,6 @@ export default function HomePage() {
           </div>
           <div className="px-4 pb-4 flex justify-between items-center">
             <p className="text-xs text-neutral-500">{ootdItems.map(i => i.name).join(' + ')}</p>
-            <span className="text-xs font-bold text-fuchsia-500">{ootd.score}/100</span>
           </div>
         </motion.div>
       )}

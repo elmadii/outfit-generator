@@ -35,8 +35,6 @@ export default function OutfitCard({ outfit, itemMap, isSaved, onSave, onUnsave,
     }
   }
 
-  const scoreColor = outfit.score >= 85 ? '#22c55e' : outfit.score >= 70 ? '#eab308' : '#f43f5e'
-
   return (
     <motion.div
       layout
@@ -76,10 +74,7 @@ export default function OutfitCard({ outfit, itemMap, isSaved, onSave, onUnsave,
           )}
         </div>
 
-        {/* score badge */}
-        <div className="absolute top-3 right-3 text-xs font-bold tabular-nums px-2 py-0.5 rounded-full bg-white/80 backdrop-blur-sm" style={{ color: scoreColor }}>
-          {outfit.score}
-        </div>
+
       </div>
 
       {/* footer */}

@@ -142,7 +142,6 @@ export default function ArcadePage() {
     )
   }
 
-  const scoreColor = score >= 85 ? '#22c55e' : score >= 70 ? '#eab308' : '#f43f5e'
   const totalRows = showBag && byCategory.bags.length > 0 ? 4 : 3
 
   return (
@@ -151,7 +150,6 @@ export default function ArcadePage() {
       <div className="flex items-center justify-between px-5 pt-10 pb-2 shrink-0">
         <h1 className="text-base font-bold tracking-tight text-neutral-800">Arcade</h1>
         <div className="flex items-center gap-3">
-          <span className="text-sm font-bold tabular-nums" style={{ color: scoreColor }}>{score}/100</span>
           <button onClick={shuffle} className="w-8 h-8 rounded-full border border-neutral-200 flex items-center justify-center text-sm hover:border-fuchsia-400 transition-colors active:scale-90">🎲</button>
         </div>
       </div>
