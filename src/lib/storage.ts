@@ -56,7 +56,7 @@ let _initPromise: Promise<void> | null = null
 
 function getDB(): Promise<IDBDatabase> {
   if (!_db) return openDB().then(db => { _db = db; return db })
-  return Promise.resolve(_db)
+  return Promise.resolve(_db!)
 }
 
 async function _doInit(): Promise<void> {
@@ -95,7 +95,7 @@ async function _doInit(): Promise<void> {
 
 export function initStorage(): Promise<void> {
   if (!_initPromise) _initPromise = _doInit()
-  return _initPromise
+  return _initPromise!
 }
 
 export const storage = {
