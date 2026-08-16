@@ -16,29 +16,34 @@ function openDB(): Promise<IDBDatabase> {
   })
 }
 
-function getAll<T>(db: IDBDatabase, store: string): Promise<T[]> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function idbGetAll<T>(db: IDBDatabase, store: string): Promise<T[]> {
   return new Promise((res, rej) => {
     const req = db.transaction(store, 'readonly').objectStore(store).getAll()
     req.onsuccess = () => res(req.result as T[])
     req.onerror = () => rej(req.error)
   })
 }
-function put(db: IDBDatabase, store: string, val: unknown): Promise<void> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function idbPut(db: IDBDatabase, store: string, val: any): Promise<void> {
   return new Promise((res, rej) => {
     const req = db.transaction(store, 'readwrite').objectStore(store).put(val)
-    req.onsuccess = () => res(); req.onerror = () => rej(req.error)
+    req.onsuccess = () => res()
+    req.onerror = () => rej(req.error)
   })
 }
-function del(db: IDBDatabase, store: string, key: IDBValidKey): Promise<void> {
+function idbDel(db: IDBDatabase, store: string, key: string): Promise<void> {
   return new Promise((res, rej) => {
     const req = db.transaction(store, 'readwrite').objectStore(store).delete(key)
-    req.onsuccess = () => res(); req.onerror = () => rej(req.error)
+    req.onsuccess = () => res()
+    req.onerror = () => rej(req.error)
   })
 }
-function clearStore(db: IDBDatabase, store: string): Promise<void> {
+function idbClear(db: IDBDatabase, store: string): Promise<void> {
   return new Promise((res, rej) => {
     const req = db.transaction(store, 'readwrite').objectStore(store).clear()
-    req.onsuccess = () => res(); req.onerror = () => rej(req.error)
+    req.onsuccess = () => res()
+    req.onerror = () => rej(req.error)
   })
 }
 
@@ -49,42 +54,43 @@ let _collections: Collection[] = []
 let _pairings: Record<string, number> = {}
 let _initPromise: Promise<void> | null = null
 
-async function getDB() {
-  if (!_db) _db = await openDB()
-  return _db
+function getDB(): Promise<IDBDatabase> {
+  if (!_db) return openDB().then(db => { _db = db; return db })
+  return Promise.resolve(_db)
 }
 
-async function _doInit() {
+async function _doInit(): Promise<void> {
   const db = await getDB()
-  _items = await getAll<ClosetItem>(db, 'items')
+  _items = await idbGetAll<ClosetItem>(db, 'items')
   _items.sort((a, b) => b.createdAt - a.createdAt)
-  _saved = await getAll<SavedOutfit>(db, 'saved')
-  _collections = await getAll<Collection>(db, 'collections')
+  _saved = await idbGetAll<SavedOutfit>(db, 'saved')
+  _collections = await idbGetAll<Collection>(db, 'collections')
 
-  // migrate from localStorage
   try {
-    const old = localStorage.getItem('fitcheck:items')
-    if (old && _items.length === 0) {
-      const parsed = JSON.parse(old) as ClosetItem[]
+    const oldItems = localStorage.getItem('fitcheck:items')
+    if (oldItems && _items.length === 0) {
+      const parsed = JSON.parse(oldItems) as ClosetItem[]
       _items = parsed
-      for (const item of parsed) await put(db, 'items', item)
+      for (const item of parsed) await idbPut(db, 'items', item)
       localStorage.removeItem('fitcheck:items')
     }
     const oldSaved = localStorage.getItem('fitcheck:saved')
     if (oldSaved && _saved.length === 0) {
       const parsed = JSON.parse(oldSaved) as SavedOutfit[]
       _saved = parsed
-      for (const s of parsed) await put(db, 'saved', s)
+      for (const s of parsed) await idbPut(db, 'saved', s)
       localStorage.removeItem('fitcheck:saved')
     }
     const oldCols = localStorage.getItem('fitcheck:collections')
     if (oldCols && _collections.length === 0) {
       const parsed = JSON.parse(oldCols) as Collection[]
       _collections = parsed
-      for (const c of parsed) await put(db, 'collections', c)
+      for (const c of parsed) await idbPut(db, 'collections', c)
       localStorage.removeItem('fitcheck:collections')
     }
-  } catch {}
+  } catch (_e) {
+    // migration failed, continue with IndexedDB data
+  }
 }
 
 export function initStorage(): Promise<void> {
@@ -96,41 +102,41 @@ export const storage = {
   getItems: () => _items,
   addItem: (item: ClosetItem) => {
     _items = [item, ..._items]
-    getDB().then(db => put(db, 'items', item))
+    getDB().then(db => idbPut(db, 'items', item)).catch(() => undefined)
   },
   updateItem: (id: string, patch: Partial<ClosetItem>) => {
     _items = _items.map(i => i.id === id ? { ...i, ...patch } : i)
     const item = _items.find(i => i.id === id)
-    if (item) getDB().then(db => put(db, 'items', item))
+    if (item) getDB().then(db => idbPut(db, 'items', item)).catch(() => undefined)
   },
   deleteItem: (id: string) => {
     _items = _items.filter(i => i.id !== id)
-    getDB().then(db => del(db, 'items', id))
+    getDB().then(db => idbDel(db, 'items', id)).catch(() => undefined)
   },
   setItems: (items: ClosetItem[]) => {
     _items = items
     getDB().then(async db => {
-      await clearStore(db, 'items')
-      for (const item of items) await put(db, 'items', item)
-    })
+      await idbClear(db, 'items')
+      for (const item of items) await idbPut(db, 'items', item)
+    }).catch(() => undefined)
   },
 
   getSaved: () => _saved,
   setSaved: (saved: SavedOutfit[]) => {
     _saved = saved
     getDB().then(async db => {
-      await clearStore(db, 'saved')
-      for (const s of saved) await put(db, 'saved', s)
-    })
+      await idbClear(db, 'saved')
+      for (const s of saved) await idbPut(db, 'saved', s)
+    }).catch(() => undefined)
   },
 
   getCollections: () => _collections,
   setCollections: (cols: Collection[]) => {
     _collections = cols
     getDB().then(async db => {
-      await clearStore(db, 'collections')
-      for (const c of cols) await put(db, 'collections', c)
-    })
+      await idbClear(db, 'collections')
+      for (const c of cols) await idbPut(db, 'collections', c)
+    }).catch(() => undefined)
   },
 
   recordPairing: (ids: string[]) => {
@@ -140,6 +146,6 @@ export const storage = {
   },
   getPairingScore: (a: string, b: string) => _pairings[`${a}:${b}`] || _pairings[`${b}:${a}`] || 0,
 
-  getTheme: () => { try { return localStorage.getItem('fitcheck:theme') || 'light' } catch { return 'light' } },
-  setTheme: (t: string) => { try { localStorage.setItem('fitcheck:theme', t) } catch {} },
+  getTheme: () => { try { return localStorage.getItem('fitcheck:theme') || 'light' } catch (_e) { return 'light' } },
+  setTheme: (t: string) => { try { localStorage.setItem('fitcheck:theme', t) } catch (_e) { /* ignore */ } },
 }
