@@ -17,11 +17,13 @@ export default function OutfitCard({ outfit, itemMap, isSaved, onSave, onUnsave,
   const [heartAnim, setHeartAnim] = useState(false)
 
   const top = items.find(i => i.category === 'tops')
+  const outer = items.find(i => i.category === 'outerwear')
   const bottom = items.find(i => i.category === 'bottoms')
   const shoes = items.find(i => i.category === 'shoes')
   const bag = items.find(i => i.category === 'bags')
   const acc = items.find(i => i.category === 'accessories')
-  const rightTop = bag ?? acc
+  const rightTop = outer ?? bag ?? acc
+  const rightMid = outer ? (bag ?? acc) : null
   const rightBottom = shoes
 
   const handleHeart = (e: React.MouseEvent) => {
@@ -60,11 +62,16 @@ export default function OutfitCard({ outfit, itemMap, isSaved, onSave, onUnsave,
           )}
         </div>
 
-        {/* right column: bag + shoes */}
-        <div className="absolute right-0 top-0 bottom-0 flex flex-col" style={{ width: '44%', padding: '10% 6% 8% 2%', gap: '6%' }}>
+        {/* right column: outerwear / bag + shoes */}
+        <div className="absolute right-0 top-0 bottom-0 flex flex-col" style={{ width: '44%', padding: '10% 6% 8% 2%', gap: '4%' }}>
           {rightTop && (
             <div className="flex-1 flex items-center justify-center min-h-0">
               <img src={rightTop.image} alt={rightTop.name} className="max-w-full max-h-full object-contain" style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.10))' }} />
+            </div>
+          )}
+          {rightMid && (
+            <div className="flex-[0.6] flex items-center justify-center min-h-0">
+              <img src={rightMid.image} alt={rightMid.name} className="max-w-full max-h-full object-contain" style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.10))' }} />
             </div>
           )}
           {rightBottom && (

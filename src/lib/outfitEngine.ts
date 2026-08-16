@@ -45,11 +45,12 @@ function calcScore(
   top: ClosetItem,
   bottom: ClosetItem,
   shoe: ClosetItem,
+  outer: ClosetItem | null,
   bag: ClosetItem | null,
   acc: ClosetItem | null,
   pairings: Record<string, number>,
 ): number {
-  const colorLists = [top.colors, bottom.colors, shoe.colors, bag?.colors ?? [], acc?.colors ?? []]
+  const colorLists = [top.colors, bottom.colors, shoe.colors, outer?.colors ?? [], bag?.colors ?? [], acc?.colors ?? []]
 
   // Color harmony: 0-60 pts. Default 30 when not enough colors are tagged.
   const coloredLists = colorLists.filter(l => l.length > 0)
@@ -66,7 +67,7 @@ function calcScore(
   const vibeComponent = maxShared >= 3 ? 25 : maxShared >= 2 ? 17 : maxShared === 1 && vibeCounts.size > 0 ? 8 : 0
 
   // Completeness bonus: 0-10 pts
-  const completenessBonus = (bag ? 5 : 0) + (acc ? 5 : 0)
+  const completenessBonus = (outer ? 4 : 0) + (bag ? 3 : 0) + (acc ? 3 : 0)
 
   // Pairing history: 0-5 pts
   const ids = [top.id, bottom.id, shoe.id]
@@ -86,6 +87,7 @@ export function generateOutfits(
   pairings: Record<string, number> = {},
 ): GeneratedOutfit[] {
   const tops = items.filter(i => i.category === 'tops')
+  const outerwears = items.filter(i => i.category === 'outerwear')
   const bottoms = items.filter(i => i.category === 'bottoms')
   const shoes = items.filter(i => i.category === 'shoes')
   const bags = items.filter(i => i.category === 'bags')
@@ -102,14 +104,15 @@ export function generateOutfits(
     const top = tops[Math.floor(Math.random() * tops.length)]
     const bottom = bottoms[Math.floor(Math.random() * bottoms.length)]
     const shoe = shoes[Math.floor(Math.random() * shoes.length)]
+    const outer = outerwears.length && Math.random() > 0.45 ? outerwears[Math.floor(Math.random() * outerwears.length)] : null
     const bag = bags.length && Math.random() > 0.5 ? bags[Math.floor(Math.random() * bags.length)] : null
     const acc = accessories.length && Math.random() > 0.6 ? accessories[Math.floor(Math.random() * accessories.length)] : null
 
-    const key = [top.id, bottom.id, shoe.id].join(':')
+    const key = [top.id, bottom.id, shoe.id, outer?.id ?? ''].join(':')
     if (seen.has(key)) continue
     seen.add(key)
 
-    const score = calcScore(top, bottom, shoe, bag, acc, pairings)
+    const score = calcScore(top, bottom, shoe, outer, bag, acc, pairings)
 
     const allVibes = [...new Set([...top.vibes, ...bottom.vibes, ...shoe.vibes])] as VibeTag[]
     const dominantVibe = allVibes.length
@@ -121,11 +124,12 @@ export function generateOutfits(
       : null
 
     const { name: vibeName, reason: baseReason } = pickVibeName(allVibes, score)
-    const colorLists = [top.colors, bottom.colors, shoe.colors, bag?.colors ?? [], acc?.colors ?? []]
+    const colorLists = [top.colors, bottom.colors, shoe.colors, outer?.colors ?? [], bag?.colors ?? [], acc?.colors ?? []]
     const palette = paletteLabel(colorLists)
     const reason = `${baseReason} ${palette}.`
 
     const picks: OutfitPick = { top: top.id, bottom: bottom.id, shoes: shoe.id }
+    if (outer) picks.outerwear = outer.id
     if (bag) picks.bag = bag.id
     if (acc) picks.accessory = acc.id
 
@@ -136,6 +140,6 @@ export function generateOutfits(
 }
 
 export function outfitItems(outfit: GeneratedOutfit, itemMap: Map<string, ClosetItem>): ClosetItem[] {
-  return [outfit.picks.top, outfit.picks.bottom, outfit.picks.shoes, outfit.picks.bag, outfit.picks.accessory]
+  return [outfit.picks.top, outfit.picks.outerwear, outfit.picks.bottom, outfit.picks.shoes, outfit.picks.bag, outfit.picks.accessory]
     .filter(Boolean).map(id => itemMap.get(id!)).filter(Boolean) as ClosetItem[]
 }

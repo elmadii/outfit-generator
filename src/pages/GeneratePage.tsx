@@ -170,7 +170,7 @@ export default function GeneratePage() {
               </div>
 
               <div className="grid grid-cols-3 gap-1 mb-4 rounded-2xl overflow-hidden">
-                {[detail.picks.top, detail.picks.bottom, detail.picks.shoes, detail.picks.bag, detail.picks.accessory]
+                {[detail.picks.top, detail.picks.outerwear, detail.picks.bottom, detail.picks.shoes, detail.picks.bag, detail.picks.accessory]
                   .filter(Boolean).map(id => {
                     const item = itemMap.get(id!)
                     if (!item) return null
@@ -183,7 +183,7 @@ export default function GeneratePage() {
               </div>
 
               <div className="flex flex-col gap-2 mb-4">
-                {[detail.picks.top, detail.picks.bottom, detail.picks.shoes, detail.picks.bag, detail.picks.accessory]
+                {[detail.picks.top, detail.picks.outerwear, detail.picks.bottom, detail.picks.shoes, detail.picks.bag, detail.picks.accessory]
                   .filter(Boolean).map(id => {
                     const item = itemMap.get(id!)
                     if (!item) return null

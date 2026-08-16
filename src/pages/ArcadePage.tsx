@@ -9,7 +9,7 @@ import { v4 as uuid } from 'uuid'
 import { Link } from 'react-router-dom'
 
 const CORE_CATS = ['tops', 'bottoms', 'shoes'] as const
-const LABELS: Record<string, string> = { tops: 'Top', bottoms: 'Bottom', shoes: 'Shoes', bags: 'Bag' }
+const LABELS: Record<string, string> = { tops: 'Top', outerwear: 'Outerwear', bottoms: 'Bottom', shoes: 'Shoes', bags: 'Bag' }
 
 function scoreFromPicks(picks: OutfitPick, itemMap: Map<string, ClosetItem>): number {
   const colors = Object.values(picks).filter(Boolean).map(id => itemMap.get(id!)?.colors ?? [])
@@ -84,18 +84,20 @@ export default function ArcadePage() {
   const itemMap = useMemo(() => new Map(items.map(i => [i.id, i])), [items])
   const byCategory = useMemo(() => ({
     tops: items.filter(i => i.category === 'tops'),
+    outerwear: items.filter(i => i.category === 'outerwear'),
     bottoms: items.filter(i => i.category === 'bottoms'),
     shoes: items.filter(i => i.category === 'shoes'),
     bags: items.filter(i => i.category === 'bags'),
   }), [items])
 
-  const [indices, setIndices] = useState<Record<string, number>>({ tops: 0, bottoms: 0, shoes: 0, bags: 0 })
-  const [directions, setDirections] = useState<Record<string, number>>({ tops: 1, bottoms: 1, shoes: 1, bags: 1 })
+  const [indices, setIndices] = useState<Record<string, number>>({ tops: 0, outerwear: 0, bottoms: 0, shoes: 0, bags: 0 })
+  const [directions, setDirections] = useState<Record<string, number>>({ tops: 1, outerwear: 1, bottoms: 1, shoes: 1, bags: 1 })
+  const [showOuter, setShowOuter] = useState(false)
   const [showBag, setShowBag] = useState(false)
   const [saved, setSaved] = useState(false)
 
   const navigate = (cat: string, dir: 1 | -1) => {
-    const list = byCategory[cat as keyof typeof byCategory]
+    const list = byCategory[cat as keyof typeof byCategory] as ClosetItem[]
     if (!list?.length) return
     setDirections(prev => ({ ...prev, [cat]: dir }))
     setIndices(prev => ({ ...prev, [cat]: (prev[cat] + dir + list.length) % list.length }))
@@ -103,8 +105,8 @@ export default function ArcadePage() {
   }
   const shuffle = () => {
     const next: Record<string, number> = {}
-    for (const cat of ['tops','bottoms','shoes','bags']) {
-      const list = byCategory[cat as keyof typeof byCategory]
+    for (const cat of ['tops','outerwear','bottoms','shoes','bags']) {
+      const list = byCategory[cat as keyof typeof byCategory] as ClosetItem[]
       next[cat] = list.length ? Math.floor(Math.random() * list.length) : 0
     }
     setIndices(next); setSaved(false)
@@ -112,10 +114,12 @@ export default function ArcadePage() {
   const picks = useMemo<OutfitPick>(() => {
     const obj: OutfitPick = {}
     const top = byCategory.tops[indices.tops]
+    const outer = byCategory.outerwear[indices.outerwear]
     const bottom = byCategory.bottoms[indices.bottoms]
     const shoe = byCategory.shoes[indices.shoes]
     const bag = byCategory.bags[indices.bags]
     if (top) obj.top = top.id
+    if (showOuter && outer) obj.outerwear = outer.id
     if (bottom) obj.bottom = bottom.id
     if (shoe) obj.shoes = shoe.id
     if (showBag && bag) obj.bag = bag.id
@@ -142,7 +146,7 @@ export default function ArcadePage() {
     )
   }
 
-  const totalRows = showBag && byCategory.bags.length > 0 ? 4 : 3
+  const totalRows = 3 + (showOuter && byCategory.outerwear.length > 0 ? 1 : 0) + (showBag && byCategory.bags.length > 0 ? 1 : 0)
 
   return (
     <div className="h-screen flex flex-col bg-white overflow-hidden max-w-lg mx-auto">
@@ -166,6 +170,26 @@ export default function ArcadePage() {
             {i < 2 && <div className="h-px bg-neutral-100 mx-10 shrink-0" />}
           </div>
         ))}
+
+        {/* outerwear section */}
+        {byCategory.outerwear.length > 0 && (
+          <>
+            <div className="h-px bg-neutral-100 mx-5 shrink-0" />
+            {showOuter ? (
+              <div className="flex-1 flex flex-col min-h-0">
+                <Row label="Outerwear" items={byCategory.outerwear} index={indices.outerwear} direction={directions.outerwear}
+                  onPrev={() => navigate('outerwear', -1)} onNext={() => navigate('outerwear', 1)} />
+                <button onClick={() => setShowOuter(false)} className="text-[10px] text-neutral-300 hover:text-red-400 transition-colors pb-1 text-center shrink-0">remove outerwear</button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center py-3 shrink-0">
+                <button onClick={() => setShowOuter(true)} className="text-xs text-neutral-400 hover:text-fuchsia-500 transition-colors flex items-center gap-1.5">
+                  <span className="text-base leading-none">+</span> add outerwear
+                </button>
+              </div>
+            )}
+          </>
+        )}
 
         {/* bag section */}
         {byCategory.bags.length > 0 && (
