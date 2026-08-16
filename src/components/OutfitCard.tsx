@@ -16,6 +16,14 @@ export default function OutfitCard({ outfit, itemMap, isSaved, onSave, onUnsave,
   const items = outfitItems(outfit, itemMap)
   const [heartAnim, setHeartAnim] = useState(false)
 
+  const top = items.find(i => i.category === 'tops')
+  const bottom = items.find(i => i.category === 'bottoms')
+  const shoes = items.find(i => i.category === 'shoes')
+  const bag = items.find(i => i.category === 'bags')
+  const acc = items.find(i => i.category === 'accessories')
+  const rightTop = bag ?? acc
+  const rightBottom = shoes
+
   const handleHeart = (e: React.MouseEvent) => {
     e.stopPropagation()
     if (!isSaved) {
@@ -27,73 +35,67 @@ export default function OutfitCard({ outfit, itemMap, isSaved, onSave, onUnsave,
     }
   }
 
-  const scoreColor =
-    outfit.score >= 85
-      ? 'text-green-500'
-      : outfit.score >= 70
-        ? 'text-yellow-500'
-        : 'text-rose-400'
+  const scoreColor = outfit.score >= 85 ? '#22c55e' : outfit.score >= 70 ? '#eab308' : '#f43f5e'
 
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, y: 16 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -8 }}
+      exit={{ opacity: 0 }}
       onClick={onClick}
-      className="bg-white dark:bg-neutral-900 rounded-2xl overflow-hidden shadow-sm hover:shadow-md border border-neutral-100 dark:border-neutral-800 cursor-pointer group transition-shadow"
+      className="bg-white rounded-3xl overflow-hidden cursor-pointer shadow-sm border border-neutral-100 hover:shadow-md transition-shadow"
     >
-      <div className="grid grid-cols-3 gap-0.5 bg-neutral-100 dark:bg-neutral-800">
-        {items.slice(0, 3).map((item) => (
-          <div key={item.id} className="aspect-square overflow-hidden">
-            <img
-              src={item.image}
-              alt={item.name}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            />
-          </div>
-        ))}
+      {/* flat-lay collage */}
+      <div className="relative bg-white" style={{ aspectRatio: '3/4' }}>
+        {/* left column: top + bottom */}
+        <div className="absolute left-0 top-0 bottom-0 flex flex-col" style={{ width: '58%', padding: '8% 2% 8% 6%', gap: '4%' }}>
+          {top && (
+            <div className="flex-1 flex items-center justify-center min-h-0">
+              <img src={top.image} alt={top.name} className="max-w-full max-h-full object-contain drop-shadow-sm" style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.08))' }} />
+            </div>
+          )}
+          {bottom && (
+            <div className="flex-1 flex items-center justify-center min-h-0">
+              <img src={bottom.image} alt={bottom.name} className="max-w-full max-h-full object-contain" style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.08))' }} />
+            </div>
+          )}
+        </div>
+
+        {/* right column: bag + shoes */}
+        <div className="absolute right-0 top-0 bottom-0 flex flex-col" style={{ width: '44%', padding: '10% 6% 8% 2%', gap: '6%' }}>
+          {rightTop && (
+            <div className="flex-1 flex items-center justify-center min-h-0">
+              <img src={rightTop.image} alt={rightTop.name} className="max-w-full max-h-full object-contain" style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.10))' }} />
+            </div>
+          )}
+          {rightBottom && (
+            <div className="flex-1 flex items-center justify-center min-h-0">
+              <img src={rightBottom.image} alt={rightBottom.name} className="max-w-full max-h-full object-contain" style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.10))' }} />
+            </div>
+          )}
+        </div>
+
+        {/* score badge */}
+        <div className="absolute top-3 right-3 text-xs font-bold tabular-nums px-2 py-0.5 rounded-full bg-white/80 backdrop-blur-sm" style={{ color: scoreColor }}>
+          {outfit.score}
+        </div>
       </div>
 
-      <div className="p-3 flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <span className="font-bold text-sm text-neutral-800 dark:text-neutral-100 leading-tight">
-            {outfit.vibeName}
-          </span>
-          <span className={`font-bold text-sm tabular-nums ${scoreColor}`}>{outfit.score}</span>
+      {/* footer */}
+      <div className="px-3 py-2.5 flex items-center justify-between border-t border-neutral-50">
+        <div className="min-w-0">
+          <p className="text-xs font-bold text-neutral-800 truncate">{outfit.vibeName}</p>
+          <p className="text-[10px] text-neutral-400 truncate">{items.map(i => i.name).join(' · ')}</p>
         </div>
-
-        <div className="flex flex-col gap-0.5">
-          {items.map((item) => (
-            <span key={item.id} className="text-xs text-neutral-500 dark:text-neutral-400 truncate">
-              · {item.name}
-            </span>
-          ))}
-        </div>
-
-        <p className="text-[11px] text-neutral-400 dark:text-neutral-500 leading-snug line-clamp-2">
-          {outfit.reason}
-        </p>
-
-        <div className="relative flex justify-end">
+        <div className="relative shrink-0 ml-2">
           <AnimatePresence>
             {heartAnim && (
-              <motion.span
-                key="float"
-                initial={{ y: 0, opacity: 1, scale: 1 }}
-                animate={{ y: -36, opacity: 0, scale: 1.8 }}
-                transition={{ duration: 0.6 }}
-                className="absolute -top-2 right-0 text-lg pointer-events-none"
-              >
-                ❤️
-              </motion.span>
+              <motion.span key="float" initial={{ y: 0, opacity: 1, scale: 1 }} animate={{ y: -28, opacity: 0, scale: 1.8 }} transition={{ duration: 0.55 }}
+                className="absolute -top-1 right-0 text-base pointer-events-none">❤️</motion.span>
             )}
           </AnimatePresence>
-          <button
-            onClick={handleHeart}
-            className="text-xl transition-transform hover:scale-125 active:scale-90"
-            aria-label={isSaved ? 'Remove from saved' : 'Save outfit'}
-          >
+          <button onClick={handleHeart} className="text-lg transition-transform hover:scale-125 active:scale-90">
             {isSaved ? '❤️' : '🤍'}
           </button>
         </div>
