@@ -10,7 +10,7 @@ export async function syncItemsUp(items: ClosetItem[]) {
 }
 
 export async function syncItemsDown(): Promise<ClosetItem[]> {
-  const { data } = await supabase.from('closet_items').select('*').eq('user_id', uid()).order('created_at', { ascending: false })
+  const { data } = await supabase.from('closet_items').select('*').order('created_at', { ascending: false })
   if (!data) return []
   return data.map(r => ({ id: r.id, category: r.category, image: r.image, name: r.name, colors: r.colors ?? [], vibes: r.vibes ?? [], notes: r.notes, createdAt: r.created_at, timesUsed: r.times_used ?? 0 }))
 }
@@ -20,7 +20,7 @@ export async function pushItem(item: ClosetItem) {
 }
 
 export async function deleteItemRemote(id: string) {
-  await supabase.from('closet_items').delete().eq('id', id).eq('user_id', uid())
+  await supabase.from('closet_items').delete().eq('id', id)
 }
 
 export async function syncSavedUp(saved: SavedOutfit[]) {
@@ -30,7 +30,7 @@ export async function syncSavedUp(saved: SavedOutfit[]) {
 }
 
 export async function syncSavedDown(): Promise<SavedOutfit[]> {
-  const { data } = await supabase.from('saved_outfits').select('*').eq('user_id', uid()).order('saved_at', { ascending: false })
+  const { data } = await supabase.from('saved_outfits').select('*').order('saved_at', { ascending: false })
   if (!data) return []
   return data.map(r => ({ id: r.id, picks: r.picks, score: r.score, vibeName: r.vibe_name, reason: r.reason, dominantVibe: r.dominant_vibe, savedAt: r.saved_at, collectionId: r.collection_id, createdAt: r.saved_at }))
 }
@@ -42,7 +42,7 @@ export async function syncCollectionsUp(cols: Collection[]) {
 }
 
 export async function syncCollectionsDown(): Promise<Collection[]> {
-  const { data } = await supabase.from('collections').select('*').eq('user_id', uid())
+  const { data } = await supabase.from('collections').select('*')
   if (!data) return []
   return data.map(r => ({ id: r.id, name: r.name, createdAt: r.created_at }))
 }
