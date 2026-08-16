@@ -144,8 +144,9 @@ export const storage = {
       if (a !== b) _pairings[`${a}:${b}`] = (_pairings[`${a}:${b}`] || 0) + 1
     }))
   },
+  getPairings: () => _pairings,
   getPairingScore: (a: string, b: string) => _pairings[`${a}:${b}`] || _pairings[`${b}:${a}`] || 0,
 
-  getTheme: () => { try { return localStorage.getItem('fitcheck:theme') || 'light' } catch (_e) { return 'light' } },
+  getTheme: (): 'light' | 'dark' => { try { return (localStorage.getItem('fitcheck:theme') as 'light' | 'dark') || 'light' } catch (_e) { return 'light' } },
   setTheme: (t: string) => { try { localStorage.setItem('fitcheck:theme', t) } catch (_e) { /* ignore */ } },
 }
