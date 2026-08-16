@@ -17,7 +17,7 @@ export default function OutfitCard({ outfit, itemMap, isSaved, onSave, onUnsave,
   const [heartAnim, setHeartAnim] = useState(false)
 
   const top = items.find(i => i.category === 'tops')
-  const outer = items.find(i => i.category === 'outerwear')
+  const outer = items.find(i => i.category === 'layer')
   const bottom = items.find(i => i.category === 'bottoms')
   const shoes = items.find(i => i.category === 'shoes')
   const bag = items.find(i => i.category === 'bags')

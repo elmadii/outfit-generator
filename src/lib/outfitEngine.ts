@@ -87,7 +87,7 @@ export function generateOutfits(
   pairings: Record<string, number> = {},
 ): GeneratedOutfit[] {
   const tops = items.filter(i => i.category === 'tops')
-  const outerwears = items.filter(i => i.category === 'outerwear')
+  const layers = items.filter(i => i.category === 'layer')
   const bottoms = items.filter(i => i.category === 'bottoms')
   const shoes = items.filter(i => i.category === 'shoes')
   const bags = items.filter(i => i.category === 'bags')
@@ -104,7 +104,7 @@ export function generateOutfits(
     const top = tops[Math.floor(Math.random() * tops.length)]
     const bottom = bottoms[Math.floor(Math.random() * bottoms.length)]
     const shoe = shoes[Math.floor(Math.random() * shoes.length)]
-    const outer = outerwears.length && Math.random() > 0.45 ? outerwears[Math.floor(Math.random() * outerwears.length)] : null
+    const outer = layers.length && Math.random() > 0.45 ? layers[Math.floor(Math.random() * layers.length)] : null
     const bag = bags.length && Math.random() > 0.5 ? bags[Math.floor(Math.random() * bags.length)] : null
     const acc = accessories.length && Math.random() > 0.6 ? accessories[Math.floor(Math.random() * accessories.length)] : null
 
@@ -129,7 +129,7 @@ export function generateOutfits(
     const reason = `${baseReason} ${palette}.`
 
     const picks: OutfitPick = { top: top.id, bottom: bottom.id, shoes: shoe.id }
-    if (outer) picks.outerwear = outer.id
+    if (outer) picks.layer = outer.id
     if (bag) picks.bag = bag.id
     if (acc) picks.accessory = acc.id
 
@@ -140,6 +140,6 @@ export function generateOutfits(
 }
 
 export function outfitItems(outfit: GeneratedOutfit, itemMap: Map<string, ClosetItem>): ClosetItem[] {
-  return [outfit.picks.top, outfit.picks.outerwear, outfit.picks.bottom, outfit.picks.shoes, outfit.picks.bag, outfit.picks.accessory]
+  return [outfit.picks.top, outfit.picks.layer, outfit.picks.bottom, outfit.picks.shoes, outfit.picks.bag, outfit.picks.accessory]
     .filter(Boolean).map(id => itemMap.get(id!)).filter(Boolean) as ClosetItem[]
 }

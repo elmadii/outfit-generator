@@ -1,10 +1,10 @@
-export type Category = 'tops' | 'outerwear' | 'bottoms' | 'shoes' | 'bags' | 'accessories'
+export type Category = 'tops' | 'layer' | 'bottoms' | 'shoes' | 'bags' | 'accessories'
 
-export const CATEGORIES: Category[] = ['tops', 'outerwear', 'bottoms', 'shoes', 'bags', 'accessories']
+export const CATEGORIES: Category[] = ['tops', 'layer', 'bottoms', 'shoes', 'bags', 'accessories']
 
 export const CATEGORY_LABEL: Record<Category, string> = {
   tops: 'Tops',
-  outerwear: 'Outerwear',
+  layer: 'Layer',
   bottoms: 'Bottoms',
   shoes: 'Shoes',
   bags: 'Bags',
@@ -13,7 +13,7 @@ export const CATEGORY_LABEL: Record<Category, string> = {
 
 export const CATEGORY_EMOJI: Record<Category, string> = {
   tops: '👕',
-  outerwear: '🧥',
+  layer: '🧥',
   bottoms: '👖',
   shoes: '👟',
   bags: '👜',
@@ -80,7 +80,7 @@ export interface DraftItem {
 
 export interface OutfitPick {
   top?: string
-  outerwear?: string
+  layer?: string
   bottom?: string
   shoes?: string
   bag?: string
