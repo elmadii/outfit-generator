@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { v4 as uuid } from 'uuid'
-import { storage } from '../lib/storage'
+import { storage, initStorage } from '../lib/storage'
 import type { ClosetItem, Category, VibeTag } from '../types'
 
 interface NewItem {
@@ -13,25 +13,31 @@ interface NewItem {
 }
 
 export function useCloset() {
-  const [items, setItems] = useState<ClosetItem[]>(() => storage.getItems())
+  const [items, setItems] = useState<ClosetItem[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const save = useCallback((updated: ClosetItem[]) => {
-    storage.setItems(updated)
-    setItems(updated)
+  useEffect(() => {
+    initStorage().then(() => {
+      setItems(storage.getItems())
+      setLoading(false)
+    })
   }, [])
 
   const addItem = useCallback((item: NewItem) => {
     const newItem: ClosetItem = { ...item, id: uuid(), createdAt: Date.now(), timesUsed: 0 }
-    save([...storage.getItems(), newItem])
-  }, [save])
+    storage.addItem(newItem)
+    setItems(prev => [newItem, ...prev])
+  }, [])
 
   const updateItem = useCallback((id: string, patch: Partial<ClosetItem>) => {
-    save(storage.getItems().map(i => i.id === id ? { ...i, ...patch } : i))
-  }, [save])
+    storage.updateItem(id, patch)
+    setItems(prev => prev.map(i => i.id === id ? { ...i, ...patch } : i))
+  }, [])
 
   const deleteItem = useCallback((id: string) => {
-    save(storage.getItems().filter(i => i.id !== id))
-  }, [save])
+    storage.deleteItem(id)
+    setItems(prev => prev.filter(i => i.id !== id))
+  }, [])
 
-  return { items, syncing: false, addItem, updateItem, deleteItem }
+  return { items, loading, syncing: false, addItem, updateItem, deleteItem }
 }

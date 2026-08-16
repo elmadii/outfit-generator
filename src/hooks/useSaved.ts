@@ -1,17 +1,23 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { v4 as uuid } from 'uuid'
-import { storage } from '../lib/storage'
+import { storage, initStorage } from '../lib/storage'
 import type { GeneratedOutfit, SavedOutfit, Collection } from '../types'
 
 export function useSaved() {
-  const [saved, setSaved] = useState<SavedOutfit[]>(() => storage.getSaved())
-  const [collections, setCollections] = useState<Collection[]>(() => storage.getCollections())
+  const [saved, setSaved] = useState<SavedOutfit[]>([])
+  const [collections, setCollections] = useState<Collection[]>([])
+
+  useEffect(() => {
+    initStorage().then(() => {
+      setSaved(storage.getSaved())
+      setCollections(storage.getCollections())
+    })
+  }, [])
 
   const saveOutfit = useCallback((outfit: GeneratedOutfit, collectionId?: string) => {
-    const existing = storage.getSaved()
-    if (existing.find(s => s.id === outfit.id)) return
+    if (storage.getSaved().find(s => s.id === outfit.id)) return
     const s: SavedOutfit = { ...outfit, savedAt: Date.now(), collectionId }
-    const updated = [...existing, s]
+    const updated = [...storage.getSaved(), s]
     storage.setSaved(updated); setSaved(updated)
     storage.recordPairing(Object.values(outfit.picks).filter(Boolean) as string[])
   }, [])
