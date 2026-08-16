@@ -23,6 +23,7 @@ export default function UploadPage() {
   const [drafts, setDrafts] = useState<DraftWithMeta[]>([])
   const [current, setCurrent] = useState(0)
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
 
   const onFiles = useCallback(async (files: FileList | null) => {
@@ -30,7 +31,7 @@ export default function UploadPage() {
     const newDrafts: DraftWithMeta[] = []
     for (const file of Array.from(files)) {
       const raw = await fileToDataUrl(file)
-      const resized = await resizeImage(raw, 700)
+      const resized = await resizeImage(raw, 400)
       newDrafts.push({
         id: uuid(), image: resized, category: 'tops',
         box: { x: 0, y: 0, w: 1, h: 1 },
@@ -77,11 +78,16 @@ export default function UploadPage() {
 
   const saveAll = async () => {
     setSaving(true)
-    for (const d of drafts) {
-      addItem({ image: d.image, category: d.category, name: d.name.trim() || 'Untitled', colors: d.colors, vibes: d.vibes, notes: d.notes.trim() || undefined })
+    setSaveError('')
+    try {
+      for (const d of drafts) {
+        addItem({ image: d.image, category: d.category, name: d.name.trim() || 'Untitled', colors: d.colors, vibes: d.vibes, notes: d.notes.trim() || undefined })
+      }
+      navigate('/closet')
+    } catch (err) {
+      setSaveError('Storage full — try uploading fewer items at once, or clear some space.')
+      setSaving(false)
     }
-    setSaving(false)
-    navigate('/closet')
   }
 
   const d = drafts[current]
@@ -95,7 +101,6 @@ export default function UploadPage() {
         <p className="text-sm text-neutral-400 mt-1">One photo per item works best. Plain background = cleaner result.</p>
       </div>
 
-      {/* drop zone */}
       <div className="px-5 mb-4">
         <motion.div
           whileTap={{ scale: 0.97 }}
@@ -111,10 +116,8 @@ export default function UploadPage() {
         <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => onFiles(e.target.files)} />
       </div>
 
-      {/* thumbnail strip */}
       {drafts.length > 0 && (
         <div className="px-5 mb-4">
-          {/* progress */}
           <div className="flex items-center justify-between mb-2">
             <p className="text-xs font-semibold text-neutral-500">
               {named}/{drafts.length} named
@@ -142,7 +145,6 @@ export default function UploadPage() {
         </div>
       )}
 
-      {/* editor */}
       {d && (
         <AnimatePresence mode="wait">
           <motion.div
@@ -152,7 +154,6 @@ export default function UploadPage() {
             exit={{ opacity: 0, x: -20 }}
             className="flex flex-col gap-5 px-5"
           >
-            {/* preview + remove bg */}
             <div className="flex gap-4 items-start">
               <div
                 className="w-36 h-44 rounded-2xl overflow-hidden shrink-0 shadow"
@@ -181,7 +182,6 @@ export default function UploadPage() {
               </div>
             </div>
 
-            {/* name */}
             <div>
               <label className="text-xs font-bold text-neutral-700 dark:text-neutral-300 mb-1.5 block">
                 Item name <span className="text-fuchsia-500">*</span>
@@ -195,7 +195,6 @@ export default function UploadPage() {
               />
             </div>
 
-            {/* category */}
             <div>
               <label className="text-xs font-bold text-neutral-700 dark:text-neutral-300 mb-2 block">Category</label>
               <div className="flex gap-2 flex-wrap">
@@ -211,7 +210,6 @@ export default function UploadPage() {
               </div>
             </div>
 
-            {/* colors */}
             <div>
               <label className="text-xs font-bold text-neutral-700 dark:text-neutral-300 mb-2 block">Colors</label>
               <div className="flex gap-2 flex-wrap">
@@ -230,7 +228,6 @@ export default function UploadPage() {
               )}
             </div>
 
-            {/* vibes */}
             <div>
               <label className="text-xs font-bold text-neutral-700 dark:text-neutral-300 mb-2 block">Vibe</label>
               <div className="flex gap-2 flex-wrap">
@@ -246,7 +243,6 @@ export default function UploadPage() {
               </div>
             </div>
 
-            {/* notes */}
             <div>
               <label className="text-xs font-bold text-neutral-700 dark:text-neutral-300 mb-1.5 block">Notes (optional)</label>
               <input
@@ -258,7 +254,10 @@ export default function UploadPage() {
               />
             </div>
 
-            {/* nav */}
+            {saveError && (
+              <p className="text-xs text-red-500 bg-red-50 dark:bg-red-900/20 rounded-xl px-4 py-3">{saveError}</p>
+            )}
+
             <div className="flex gap-3 pb-2">
               <button
                 disabled={current === 0}
