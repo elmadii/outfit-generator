@@ -68,6 +68,7 @@ Keep each section to 2–3 sharp sentences. Be real, not fluffy. Think best frie
 
   if (!response.ok) {
     if (response.status === 401) throw new Error('invalid-key')
+    if (response.status === 403) throw new Error('no-credits')
     if (response.status === 429) throw new Error('rate-limited')
     throw new Error(`api-error-${response.status}`)
   }

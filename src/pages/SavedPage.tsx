@@ -85,11 +85,17 @@ export default function SavedPage() {
         clearApiKey()
         setAiError('API key rejected. Tap "✨ Analyze" again to re-enter it.')
         setAiStatus('error')
+      } else if (msg === 'no-credits') {
+        setAiError('No credits on your Anthropic account. Add credits at console.anthropic.com → Billing.')
+        setAiStatus('error')
       } else if (msg === 'rate-limited') {
         setAiError('Rate limit hit — wait a moment and try again.')
         setAiStatus('error')
+      } else if (msg.startsWith('api-error-')) {
+        setAiError(`API error (${msg.replace('api-error-', '')}). Check your key and credits at console.anthropic.com.`)
+        setAiStatus('error')
       } else {
-        setAiError('Something went wrong. Try again.')
+        setAiError('Network error — check your connection and try again.')
         setAiStatus('error')
       }
     }
