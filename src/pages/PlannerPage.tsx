@@ -25,7 +25,7 @@ function getWeekDays(anchor: Date): Date[] {
 function getMonthGrid(year: number, month: number): (Date | null)[] {
   const first = new Date(year, month, 1)
   const last = new Date(year, month + 1, 0)
-  const startOffset = (first.getDay() + 6) % 7 // Mon=0
+  const startOffset = (first.getDay() + 6) % 7
   const cells: (Date | null)[] = Array(startOffset).fill(null)
   for (let d = 1; d <= last.getDate(); d++) cells.push(new Date(year, month, d))
   while (cells.length % 7 !== 0) cells.push(null)
@@ -44,7 +44,7 @@ export default function PlannerPage() {
     initStorage().then(() => setPlanner(storage.getPlanner()))
   }, [])
 
-  const itemMap = useMemo(() => new Map(items.map(i => [i.id, i])), [items])
+  const itemMap  = useMemo(() => new Map(items.map(i => [i.id, i])), [items])
   const savedMap = useMemo(() => new Map(saved.map(s => [s.id, s])), [saved])
 
   const today = toDateStr(new Date())
@@ -67,7 +67,7 @@ export default function PlannerPage() {
     setCursor(d)
   }
 
-  const weekDays = useMemo(() => getWeekDays(cursor), [cursor])
+  const weekDays   = useMemo(() => getWeekDays(cursor), [cursor])
   const monthCells = useMemo(() => getMonthGrid(cursor.getFullYear(), cursor.getMonth()), [cursor])
 
   const thumbFor = (outfitId: string): string | null => {
@@ -85,19 +85,22 @@ export default function PlannerPage() {
 
   return (
     <div className="min-h-screen flex flex-col pb-28 max-w-lg mx-auto">
+
       {/* header */}
       <div className="px-5 pt-12 pb-3 flex items-center justify-between">
-        <h1 className="text-2xl font-extrabold tracking-tight">📅 Planner</h1>
-        <div className="flex gap-0.5 bg-neutral-100 dark:bg-neutral-800 rounded-full p-1">
+        <h1 className="text-2xl font-extrabold tracking-tight text-stone-800 dark:text-stone-100">
+          Calendar
+        </h1>
+        <div className="flex gap-0.5 bg-stone-100 dark:bg-stone-800 rounded-full p-1">
           <button
             onClick={() => setView('week')}
-            className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${view === 'week' ? 'bg-white dark:bg-neutral-700 shadow text-neutral-800 dark:text-white' : 'text-neutral-400'}`}
+            className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${view === 'week' ? 'bg-white dark:bg-stone-700 shadow text-stone-800 dark:text-white' : 'text-stone-400'}`}
           >
             Week
           </button>
           <button
             onClick={() => setView('month')}
-            className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${view === 'month' ? 'bg-white dark:bg-neutral-700 shadow text-neutral-800 dark:text-white' : 'text-neutral-400'}`}
+            className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${view === 'month' ? 'bg-white dark:bg-stone-700 shadow text-stone-800 dark:text-white' : 'text-stone-400'}`}
           >
             Month
           </button>
@@ -108,14 +111,14 @@ export default function PlannerPage() {
       <div className="px-5 mb-4 flex items-center justify-between">
         <button
           onClick={() => navigate(-1)}
-          className="w-8 h-8 rounded-full border border-neutral-200 dark:border-neutral-700 flex items-center justify-center text-lg leading-none hover:border-fuchsia-400 transition-colors"
+          className="w-8 h-8 rounded-full border border-stone-200 dark:border-stone-700 flex items-center justify-center text-lg leading-none hover:border-fuchsia-400 transition-colors"
         >
           ‹
         </button>
-        <p className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">{headerLabel}</p>
+        <p className="text-sm font-semibold text-stone-700 dark:text-stone-300">{headerLabel}</p>
         <button
           onClick={() => navigate(1)}
-          className="w-8 h-8 rounded-full border border-neutral-200 dark:border-neutral-700 flex items-center justify-center text-lg leading-none hover:border-fuchsia-400 transition-colors"
+          className="w-8 h-8 rounded-full border border-stone-200 dark:border-stone-700 flex items-center justify-center text-lg leading-none hover:border-fuchsia-400 transition-colors"
         >
           ›
         </button>
@@ -125,51 +128,49 @@ export default function PlannerPage() {
       {view === 'week' && (
         <div className="px-4 flex flex-col gap-2">
           {weekDays.map((d, i) => {
-            const dateStr = toDateStr(d)
+            const dateStr  = toDateStr(d)
             const outfitId = planner[dateStr]
             const hasOutfit = outfitId && savedMap.has(outfitId)
-            const isToday = dateStr === today
+            const isToday   = dateStr === today
             return (
               <div
                 key={dateStr}
                 className={`flex items-center gap-3 rounded-2xl p-3 border transition-colors ${
                   isToday
                     ? 'bg-fuchsia-50 dark:bg-fuchsia-950/30 border-fuchsia-200 dark:border-fuchsia-800'
-                    : 'bg-white dark:bg-neutral-900 border-neutral-100 dark:border-neutral-800'
+                    : 'bg-white dark:bg-stone-900 border-stone-100 dark:border-stone-800'
                 }`}
               >
                 <div className="shrink-0 w-12 text-center">
-                  <p className={`text-[10px] font-bold uppercase tracking-wider ${isToday ? 'text-fuchsia-500' : 'text-neutral-400'}`}>
+                  <p className={`text-[10px] font-bold uppercase tracking-wider ${isToday ? 'text-fuchsia-500' : 'text-stone-400'}`}>
                     {DAY_LABELS[i]}
                   </p>
-                  <p className={`text-xl font-extrabold leading-none mt-0.5 ${isToday ? 'text-fuchsia-600' : 'text-neutral-800 dark:text-neutral-100'}`}>
+                  <p className={`text-xl font-extrabold leading-none mt-0.5 ${isToday ? 'text-fuchsia-600' : 'text-stone-800 dark:text-stone-100'}`}>
                     {d.getDate()}
                   </p>
                 </div>
 
                 {hasOutfit ? (
                   <div className="flex-1 flex items-center gap-3 min-w-0">
-                    <div className="w-11 h-11 rounded-xl overflow-hidden shrink-0 bg-neutral-100 dark:bg-neutral-800">
+                    <div className="w-11 h-11 rounded-xl overflow-hidden shrink-0 bg-stone-100 dark:bg-stone-800">
                       {thumbFor(outfitId)
                         ? <img src={thumbFor(outfitId)!} alt="" className="w-full h-full object-contain" />
                         : <div className="w-full h-full flex items-center justify-center text-lg">👗</div>
                       }
                     </div>
-                    <p className="text-sm font-semibold truncate text-neutral-700 dark:text-neutral-200 flex-1">
+                    <p className="text-sm font-semibold truncate text-stone-700 dark:text-stone-200 flex-1">
                       {nameFor(outfitId)}
                     </p>
                     <div className="flex gap-1 shrink-0">
                       <button
                         onClick={() => setPicking(dateStr)}
-                        className="w-7 h-7 rounded-full bg-neutral-100 dark:bg-neutral-800 text-xs flex items-center justify-center hover:bg-fuchsia-100 dark:hover:bg-fuchsia-900/40 transition-colors"
-                        title="Change outfit"
+                        className="w-7 h-7 rounded-full bg-stone-100 dark:bg-stone-800 text-xs flex items-center justify-center hover:bg-fuchsia-100 dark:hover:bg-fuchsia-900/40 transition-colors"
                       >
                         ✏️
                       </button>
                       <button
                         onClick={() => remove(dateStr)}
-                        className="w-7 h-7 rounded-full bg-neutral-100 dark:bg-neutral-800 text-sm flex items-center justify-center hover:bg-red-100 dark:hover:bg-red-900/30 text-neutral-500 hover:text-red-500 transition-colors"
-                        title="Remove"
+                        className="w-7 h-7 rounded-full bg-stone-100 dark:bg-stone-800 text-sm flex items-center justify-center hover:bg-red-100 text-stone-400 hover:text-red-500 transition-colors"
                       >
                         ×
                       </button>
@@ -178,9 +179,9 @@ export default function PlannerPage() {
                 ) : (
                   <button
                     onClick={() => setPicking(dateStr)}
-                    className="flex-1 flex items-center gap-3 text-neutral-400 hover:text-fuchsia-500 transition-colors group"
+                    className="flex-1 flex items-center gap-3 text-stone-400 hover:text-fuchsia-500 transition-colors group"
                   >
-                    <div className="w-11 h-11 rounded-xl border-2 border-dashed border-neutral-200 dark:border-neutral-700 group-hover:border-fuchsia-300 flex items-center justify-center text-lg transition-colors">
+                    <div className="w-11 h-11 rounded-xl border-2 border-dashed border-stone-200 dark:border-stone-700 group-hover:border-fuchsia-300 flex items-center justify-center text-lg transition-colors">
                       +
                     </div>
                     <span className="text-sm">Plan an outfit</span>
@@ -197,7 +198,7 @@ export default function PlannerPage() {
         <div className="px-4">
           <div className="grid grid-cols-7 mb-1">
             {DAY_LABELS.map(d => (
-              <div key={d} className="text-center text-[10px] font-bold uppercase tracking-wider text-neutral-400 py-1">
+              <div key={d} className="text-center text-[10px] font-bold uppercase tracking-wider text-stone-400 py-1">
                 {d[0]}
               </div>
             ))}
@@ -205,11 +206,11 @@ export default function PlannerPage() {
           <div className="grid grid-cols-7 gap-1">
             {monthCells.map((d, i) => {
               if (!d) return <div key={`e${i}`} />
-              const dateStr = toDateStr(d)
+              const dateStr  = toDateStr(d)
               const outfitId = planner[dateStr]
               const hasOutfit = outfitId && savedMap.has(outfitId)
-              const isToday = dateStr === today
-              const thumb = hasOutfit ? thumbFor(outfitId) : null
+              const isToday   = dateStr === today
+              const thumb     = hasOutfit ? thumbFor(outfitId) : null
               return (
                 <button
                   key={dateStr}
@@ -219,10 +220,10 @@ export default function PlannerPage() {
                       ? 'border-fuchsia-400'
                       : hasOutfit
                         ? 'border-fuchsia-200 dark:border-fuchsia-800'
-                        : 'border-transparent hover:border-fuchsia-200 dark:hover:border-fuchsia-800'
-                  } ${hasOutfit ? 'bg-fuchsia-50 dark:bg-fuchsia-950/20' : 'bg-neutral-50 dark:bg-neutral-900'}`}
+                        : 'border-transparent hover:border-fuchsia-200'
+                  } ${hasOutfit ? 'bg-fuchsia-50 dark:bg-fuchsia-950/20' : 'bg-white dark:bg-stone-900'}`}
                 >
-                  <span className={`relative z-10 text-xs font-bold leading-none ${isToday ? 'text-fuchsia-600' : 'text-neutral-500 dark:text-neutral-400'}`}>
+                  <span className={`relative z-10 text-xs font-bold leading-none ${isToday ? 'text-fuchsia-600' : 'text-stone-500 dark:text-stone-400'}`}>
                     {d.getDate()}
                   </span>
                   {thumb && (
@@ -239,7 +240,7 @@ export default function PlannerPage() {
       )}
 
       {saved.length === 0 && (
-        <p className="mt-10 text-center text-sm text-neutral-400 px-10">
+        <p className="mt-10 text-center text-sm text-stone-400 px-10">
           Save some outfits first, then plan your week here.
         </p>
       )}
@@ -260,11 +261,11 @@ export default function PlannerPage() {
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 30 }}
               onClick={e => e.stopPropagation()}
-              className="w-full max-w-lg bg-white dark:bg-neutral-900 rounded-t-3xl p-5 pb-10 max-h-[72vh] flex flex-col"
+              className="w-full max-w-lg bg-white dark:bg-stone-900 rounded-t-3xl p-5 pb-10 max-h-[72vh] flex flex-col"
             >
-              <div className="w-10 h-1 bg-neutral-200 dark:bg-neutral-700 rounded-full mx-auto mb-4" />
+              <div className="w-10 h-1 bg-stone-200 dark:bg-stone-700 rounded-full mx-auto mb-4" />
               <div className="flex items-center justify-between mb-4">
-                <p className="font-bold text-base">Pick an outfit</p>
+                <p className="font-bold text-base text-stone-800 dark:text-stone-100">Pick an outfit</p>
                 {picking && planner[picking] && (
                   <button
                     onClick={() => { remove(picking); setPicking(null) }}
@@ -276,11 +277,11 @@ export default function PlannerPage() {
               </div>
 
               {saved.length === 0 ? (
-                <p className="text-neutral-400 text-sm text-center py-10">No saved outfits yet.</p>
+                <p className="text-stone-400 text-sm text-center py-10">No saved outfits yet.</p>
               ) : (
                 <div className="grid grid-cols-3 gap-2 overflow-y-auto">
                   {saved.map(outfit => {
-                    const thumb = thumbFor(outfit.id)
+                    const thumb      = thumbFor(outfit.id)
                     const isSelected = picking ? planner[picking] === outfit.id : false
                     return (
                       <button
@@ -291,16 +292,14 @@ export default function PlannerPage() {
                         }`}
                       >
                         {thumb
-                          ? <img src={thumb} alt="" className="w-full h-full object-contain bg-neutral-50 dark:bg-neutral-800" />
-                          : <div className="w-full h-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center text-3xl">👗</div>
+                          ? <img src={thumb} alt="" className="w-full h-full object-contain bg-stone-50 dark:bg-stone-800" />
+                          : <div className="w-full h-full bg-stone-100 dark:bg-stone-800 flex items-center justify-center text-3xl">👗</div>
                         }
                         <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-2">
                           <p className="text-white text-[10px] font-semibold truncate">{outfit.vibeName}</p>
                         </div>
                         {isSelected && (
-                          <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-fuchsia-500 flex items-center justify-center text-white text-[10px] font-bold">
-                            ✓
-                          </div>
+                          <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-fuchsia-500 flex items-center justify-center text-white text-[10px] font-bold">✓</div>
                         )}
                       </button>
                     )
