@@ -43,16 +43,20 @@ export default function ClosetPage() {
 
   return (
     <div className="min-h-screen flex flex-col pb-28 max-w-lg mx-auto">
+
+      {/* header */}
       <div className="px-5 pt-12 pb-4 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight">👗 My Closet</h1>
-          <p className="text-xs text-neutral-400 mt-0.5">{items.length} items</p>
+          <h1 className="text-2xl font-extrabold tracking-tight text-stone-800 dark:text-stone-100">
+            My Wardrobe
+          </h1>
+          <p className="text-xs text-stone-400 mt-0.5">{items.length} items</p>
         </div>
         <Link
           to="/upload"
-          className="px-4 py-2 rounded-full bg-gradient-to-r from-fuchsia-500 to-rose-500 text-white text-xs font-bold shadow"
+          className="px-4 py-2.5 rounded-2xl bg-fuchsia-500 text-white text-xs font-bold shadow-md active:scale-95 transition-transform"
         >
-          + Add
+          + Add piece
         </Link>
       </div>
 
@@ -62,16 +66,16 @@ export default function ClosetPage() {
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="🔍 Search by name, color, vibe…"
-          className="w-full rounded-2xl border-2 border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-4 py-2.5 text-sm focus:outline-none focus:border-fuchsia-400 transition-colors"
+          placeholder="Search by name, color, vibe…"
+          className="w-full rounded-2xl border-2 border-stone-100 dark:border-stone-800 bg-white dark:bg-stone-900 px-4 py-2.5 text-sm focus:outline-none focus:border-fuchsia-400 transition-colors"
         />
       </div>
 
-      {/* filters */}
+      {/* category filters */}
       <div className="flex gap-2 px-5 mb-3 overflow-x-auto no-scrollbar">
         <button
           onClick={() => setFilterCat('all')}
-          className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all ${filterCat === 'all' ? 'bg-fuchsia-500 border-fuchsia-500 text-white' : 'border-neutral-200 dark:border-neutral-700 text-neutral-500'}`}
+          className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all ${filterCat === 'all' ? 'bg-fuchsia-500 border-fuchsia-500 text-white' : 'border-stone-200 dark:border-stone-700 text-stone-500'}`}
         >
           All
         </button>
@@ -79,7 +83,7 @@ export default function ClosetPage() {
           <button
             key={cat}
             onClick={() => setFilterCat(cat)}
-            className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all ${filterCat === cat ? 'bg-fuchsia-500 border-fuchsia-500 text-white' : 'border-neutral-200 dark:border-neutral-700 text-neutral-500'}`}
+            className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all ${filterCat === cat ? 'bg-fuchsia-500 border-fuchsia-500 text-white' : 'border-stone-200 dark:border-stone-700 text-stone-500'}`}
           >
             {CATEGORY_EMOJI[cat]} {CATEGORY_LABEL[cat]}
           </button>
@@ -92,7 +96,7 @@ export default function ClosetPage() {
           <button
             key={s}
             onClick={() => setSortBy(s)}
-            className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${sortBy === s ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900' : 'text-neutral-400 hover:text-neutral-600'}`}
+            className={`px-3 py-1 rounded-full text-xs font-medium transition-all capitalize ${sortBy === s ? 'bg-stone-800 dark:bg-white text-white dark:text-stone-900' : 'text-stone-400 hover:text-stone-600'}`}
           >
             {s}
           </button>
@@ -102,10 +106,13 @@ export default function ClosetPage() {
       {/* items */}
       {items.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center px-10 text-center gap-3">
-          <span className="text-6xl">🌟</span>
-          <p className="font-semibold">Your closet is empty</p>
-          <p className="text-sm text-neutral-400">Upload your first item to get started!</p>
-          <Link to="/upload" className="mt-2 px-6 py-2.5 rounded-full bg-gradient-to-r from-fuchsia-500 to-rose-500 text-white text-sm font-bold shadow">
+          <span className="text-6xl">👗</span>
+          <p className="font-semibold text-stone-800 dark:text-stone-100">Your wardrobe is empty</p>
+          <p className="text-sm text-stone-400">Upload your first piece to get started!</p>
+          <Link
+            to="/upload"
+            className="mt-2 px-6 py-2.5 rounded-full bg-fuchsia-500 text-white text-sm font-bold shadow-md"
+          >
             Upload now
           </Link>
         </div>
@@ -113,17 +120,13 @@ export default function ClosetPage() {
         <div className="px-5 flex flex-col gap-8">
           {byCategory.map(({ cat, items: catItems }) => (
             <div key={cat}>
-              <p className="text-xs font-bold uppercase tracking-widest text-neutral-400 mb-3">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-3">
                 {CATEGORY_EMOJI[cat]} {CATEGORY_LABEL[cat]} · {catItems.length}
               </p>
               <div className="grid grid-cols-3 gap-2">
                 <AnimatePresence>
                   {catItems.map(item => (
-                    <ItemCard
-                      key={item.id}
-                      item={item}
-                      onDelete={() => setDeleteId(item.id)}
-                    />
+                    <ItemCard key={item.id} item={item} onDelete={() => setDeleteId(item.id)} />
                   ))}
                 </AnimatePresence>
               </div>
@@ -134,15 +137,13 @@ export default function ClosetPage() {
         <div className="px-5 grid grid-cols-3 gap-2">
           <AnimatePresence>
             {filtered.map(item => (
-              <ItemCard
-                key={item.id}
-                item={item}
-                onDelete={() => setDeleteId(item.id)}
-              />
+              <ItemCard key={item.id} item={item} onDelete={() => setDeleteId(item.id)} />
             ))}
           </AnimatePresence>
           {filtered.length === 0 && (
-            <div className="col-span-3 py-10 text-center text-neutral-400 text-sm">No items match your search 🙈</div>
+            <div className="col-span-3 py-10 text-center text-stone-400 text-sm">
+              No items match your search
+            </div>
           )}
         </div>
       )}
@@ -162,19 +163,22 @@ export default function ClosetPage() {
               animate={{ y: 0 }}
               exit={{ y: 100 }}
               onClick={e => e.stopPropagation()}
-              className="w-full max-w-lg bg-white dark:bg-neutral-900 rounded-t-3xl p-6 pb-10"
+              className="w-full max-w-lg bg-white dark:bg-stone-900 rounded-t-3xl p-6 pb-10"
             >
-              <p className="text-base font-bold mb-1">Remove this item?</p>
-              <p className="text-sm text-neutral-400 mb-5">This can't be undone.</p>
+              <p className="text-base font-bold mb-1 text-stone-800 dark:text-stone-100">Remove this item?</p>
+              <p className="text-sm text-stone-400 mb-5">This can't be undone.</p>
               <div className="flex gap-3">
-                <button onClick={() => setDeleteId(null)} className="flex-1 py-3 rounded-2xl border-2 border-neutral-200 dark:border-neutral-700 text-sm font-semibold">
+                <button
+                  onClick={() => setDeleteId(null)}
+                  className="flex-1 py-3 rounded-2xl border-2 border-stone-200 dark:border-stone-700 text-sm font-semibold"
+                >
                   Cancel
                 </button>
                 <button
                   onClick={() => { deleteItem(deleteId); setDeleteId(null) }}
                   className="flex-1 py-3 rounded-2xl bg-red-500 text-white text-sm font-bold"
                 >
-                  🗑 Remove
+                  Remove
                 </button>
               </div>
             </motion.div>

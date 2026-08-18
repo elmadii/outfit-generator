@@ -122,8 +122,10 @@ export default function SavedPage() {
   return (
     <div className="min-h-screen flex flex-col pb-28 max-w-lg mx-auto">
       <div className="px-5 pt-12 pb-4">
-        <h1 className="text-2xl font-extrabold tracking-tight">❤️ Saved</h1>
-        <p className="text-xs text-neutral-400 mt-0.5">{saved.length} saved outfits</p>
+        <h1 className="text-2xl font-extrabold tracking-tight text-stone-800 dark:text-stone-100">
+          My Outfits
+        </h1>
+        <p className="text-xs text-stone-400 mt-0.5">{saved.length} saved outfit{saved.length !== 1 ? 's' : ''}</p>
       </div>
 
       {/* collections */}
