@@ -1,4 +1,5 @@
 import type { ClosetItem } from '../types'
+import type { StylePrefs } from './storage'
 
 const KEY_STORE = 'fitcheck:anthropic-key'
 const API_URL = '/api/analyze'
@@ -19,6 +20,7 @@ export function clearApiKey(): void {
 export async function* analyzeOutfit(
   items: ClosetItem[],
   signal?: AbortSignal,
+  prefs?: StylePrefs,
 ): AsyncGenerator<string> {
   const apiKey = getApiKey()
   if (!apiKey) throw new Error('no-key')
@@ -31,21 +33,27 @@ export async function* analyzeOutfit(
     return '• ' + parts.join(' | ')
   }).join('\n')
 
+  const prefsBlock = prefs ? [
+    prefs.aesthetics.length ? `Style aesthetics they gravitate toward: ${prefs.aesthetics.join(', ')}.` : '',
+    prefs.lifestyle ? `Lifestyle context: ${prefs.lifestyle}.` : '',
+    prefs.extraContext ? `Additional context: ${prefs.extraContext}.` : '',
+  ].filter(Boolean).join(' ') : ''
+
   const prompt = `You're a brutally honest but supportive personal stylist. Analyze this outfit from my wardrobe:
 
 ${descriptions}
-
+${prefsBlock ? `\nAbout the person wearing this: ${prefsBlock}\n` : ''}
 Break it down with exactly these 5 sections:
 
 🎨 Color Story — how the colors interact, any harmony or awkward clash
 
 🧵 Texture & Fabric — based on the item names (e.g. "knitted", "denim", "satin", "ribbed", "linen"), how do the textures mix?
 
-✨ Vibe Check — does the style feel cohesive, or is something pulling in a different direction?
+✨ Vibe Check — does the style feel cohesive, or is something pulling in a different direction? Consider their stated aesthetic preferences if provided.
 
 💪 What's Working — the strongest elements of this outfit, be specific about which pieces
 
-🔄 What to Tweak — honest, actionable suggestions; name the specific piece to change and what to swap it for if anything feels off
+🔄 What to Tweak — honest, actionable suggestions; name the specific piece to change and what to swap it for if anything feels off. Factor in their lifestyle context if provided.
 
 Keep each section to 2–3 sharp sentences. Be real, not fluffy. Think best friend who actually knows fashion.`
 

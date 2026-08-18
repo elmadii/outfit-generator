@@ -1,14 +1,14 @@
-import type { ClosetItem, SavedOutfit, Collection } from '../types'
+import type { ClosetItem, SavedOutfit, Collection, WearEntry } from '../types'
 
 const DB_NAME = 'fitcheck-v1'
-const DB_VERSION = 2
+const DB_VERSION = 3
 
 function openDB(): Promise<IDBDatabase> {
   return new Promise((res, rej) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION)
     req.onupgradeneeded = () => {
       const db = req.result
-      ;['items', 'saved', 'collections', 'planner'].forEach(s => {
+      ;['items', 'saved', 'collections', 'planner', 'wearLog'].forEach(s => {
         if (!db.objectStoreNames.contains(s)) db.createObjectStore(s, { keyPath: 'id' })
       })
     }
@@ -54,6 +54,7 @@ let _saved: SavedOutfit[] = []
 let _collections: Collection[] = []
 let _pairings: Record<string, number> = {}
 let _planner: Record<string, string> = {} // date (YYYY-MM-DD) -> outfitId
+let _wearLog: WearEntry[] = []
 let _initPromise: Promise<void> | null = null
 
 function getDB(): Promise<IDBDatabase> {
@@ -70,6 +71,8 @@ async function _doInit(): Promise<void> {
   const plannerEntries = await idbGetAll<{ id: string; outfitId: string }>(db, 'planner')
   _planner = {}
   plannerEntries.forEach(e => { _planner[e.id] = e.outfitId })
+  _wearLog = await idbGetAll<WearEntry>(db, 'wearLog')
+  _wearLog.sort((a, b) => b.createdAt - a.createdAt)
 
   try {
     const oldItems = localStorage.getItem('fitcheck:items')
@@ -164,6 +167,38 @@ export const storage = {
     getDB().then(db => idbDel(db, 'planner', date)).catch(() => undefined)
   },
 
+  getWearLog: () => [..._wearLog],
+  addWearEntry: (entry: WearEntry) => {
+    _wearLog = [entry, ..._wearLog]
+    getDB().then(db => idbPut(db, 'wearLog', entry)).catch(() => undefined)
+  },
+  updateWearEntry: (id: string, patch: Partial<WearEntry>) => {
+    _wearLog = _wearLog.map(e => e.id === id ? { ...e, ...patch } : e)
+    const entry = _wearLog.find(e => e.id === id)
+    if (entry) getDB().then(db => idbPut(db, 'wearLog', entry)).catch(() => undefined)
+  },
+  deleteWearEntry: (id: string) => {
+    _wearLog = _wearLog.filter(e => e.id !== id)
+    getDB().then(db => idbDel(db, 'wearLog', id)).catch(() => undefined)
+  },
+
+  getStylePrefs: (): StylePrefs | null => {
+    try {
+      const raw = localStorage.getItem('fitcheck:style-prefs')
+      return raw ? JSON.parse(raw) as StylePrefs : null
+    } catch { return null }
+  },
+  setStylePrefs: (prefs: StylePrefs) => {
+    try { localStorage.setItem('fitcheck:style-prefs', JSON.stringify(prefs)) } catch { /* ignore */ }
+  },
+
   getTheme: (): 'light' | 'dark' => { try { return (localStorage.getItem('fitcheck:theme') as 'light' | 'dark') || 'light' } catch (_e) { return 'light' } },
   setTheme: (t: string) => { try { localStorage.setItem('fitcheck:theme', t) } catch (_e) { /* ignore */ } },
+}
+
+export interface StylePrefs {
+  aesthetics: string[]    // chosen vibe tags / custom
+  lifestyle: string       // e.g. "student", "professional", "creative"
+  avoidColors: string[]
+  extraContext: string    // free text
 }

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useCloset } from '../hooks/useCloset'
 import { useSaved } from '../hooks/useSaved'
@@ -80,6 +80,18 @@ export default function ArcadePage() {
     setActiveSlot(null)
     setSaved(false)
   }
+
+  // Keyboard navigation: ← → to cycle, 1-6 to activate slots
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft' && activeSlot) { e.preventDefault(); swipeSlot(activeSlot, -1) }
+      if (e.key === 'ArrowRight' && activeSlot) { e.preventDefault(); swipeSlot(activeSlot, 1) }
+      const slotIndex = parseInt(e.key) - 1
+      if (slotIndex >= 0 && slotIndex < availableSlots.length) activateSlot(availableSlots[slotIndex].key)
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [activeSlot, availableSlots, swipeIdx])
 
   const filledCount = Object.values(picks).filter(Boolean).length
 

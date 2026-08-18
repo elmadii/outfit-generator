@@ -65,9 +65,18 @@ export interface ClosetItem {
   name: string
   colors: string[] // color names, see lib/colorTheory.ts
   vibes: VibeTag[]
+  customVibes?: string[] // user-defined free-text vibes
   notes?: string
   createdAt: number
   timesUsed: number
+}
+
+export interface WearEntry {
+  id: string
+  date: string       // YYYY-MM-DD
+  outfitId?: string  // optional reference to a saved outfit
+  note: string
+  createdAt: number
 }
 
 /** A draft item pending naming, produced by the crop/extraction step. */

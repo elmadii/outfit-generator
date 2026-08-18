@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useCloset } from '../hooks/useCloset'
@@ -65,6 +65,7 @@ export default function GeneratePage() {
 
   const itemMap = useMemo(() => new Map(items.map(i => [i.id, i])), [items])
   const check = outfitReadyCheck(items)
+  const seenKeys = useRef(new Set<string>())
 
   /* preferred vibes from selected tag or typed text */
   const preferredVibes = useMemo((): VibeTag[] => {
@@ -91,7 +92,18 @@ export default function GeneratePage() {
     setGenerating(true)
     setTimeout(() => {
       const pairings = storage.getPairings()
-      let results = generateOutfits(items, 18, pairings)
+      // reset dedup history when wardrobe is small to avoid running dry
+      if (seenKeys.current.size > 40) seenKeys.current.clear()
+
+      const allResults = generateOutfits(items, 30, pairings)
+      let results = allResults.filter(o => {
+        const key = [o.picks.top, o.picks.bottom, o.picks.shoes, o.picks.layer ?? ''].join(':')
+        if (seenKeys.current.has(key)) return false
+        seenKeys.current.add(key)
+        return true
+      })
+      // fallback: if dedup filtered everything, use first 6 anyway
+      if (results.length === 0) results = allResults
 
       /* weather filter */
       if (useWeather && weather) {

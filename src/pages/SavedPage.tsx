@@ -2,22 +2,39 @@ import { useState, useMemo, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSaved } from '../hooks/useSaved'
 import { useCloset } from '../hooks/useCloset'
+import { useWearLog } from '../hooks/useWearLog'
 import OutfitCard from '../components/OutfitCard'
 import { outfitItems } from '../lib/outfitEngine'
 import { getApiKey, setApiKey, clearApiKey, analyzeOutfit } from '../lib/ai'
-import { CATEGORY_EMOJI } from '../types'
+import { storage } from '../lib/storage'
+import type { StylePrefs } from '../lib/storage'
+import { CATEGORY_EMOJI, VIBE_TAGS } from '../types'
 import type { SavedOutfit } from '../types'
 
 type AiStatus = 'idle' | 'loading' | 'done' | 'error'
 
+function toDateStr(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 export default function SavedPage() {
   const { saved, collections, saveOutfit, unsaveOutfit, isSaved, addCollection, deleteCollection } = useSaved()
   const { items } = useCloset()
+  const { logWear, getEntriesForDate } = useWearLog()
   const [filterCol, setFilterCol] = useState<string>('all')
   const [showAddCol, setShowAddCol] = useState(false)
   const [newColName, setNewColName] = useState('')
   const [detail, setDetail] = useState<SavedOutfit | null>(null)
   const [moveOutfit, setMoveOutfit] = useState<SavedOutfit | null>(null)
+
+  // Wear log
+  const [showWearModal, setShowWearModal] = useState(false)
+  const [wearNote, setWearNote] = useState('')
+  const [wearSaved, setWearSaved] = useState(false)
+
+  // Style prefs
+  const [showPrefs, setShowPrefs] = useState(false)
+  const [prefs, setPrefs] = useState<StylePrefs>(() => storage.getStylePrefs() ?? { aesthetics: [], lifestyle: '', avoidColors: [], extraContext: '' })
 
   // AI analysis state
   const [aiStatus, setAiStatus] = useState<AiStatus>('idle')
@@ -35,9 +52,14 @@ export default function SavedPage() {
     setAiStatus('idle')
     setAiText('')
     setAiError('')
+    setWearSaved(false)
+    const today = toDateStr(new Date())
+    if (detail) {
+      const todayEntries = getEntriesForDate(today)
+      setWearSaved(todayEntries.some(e => e.outfitId === detail.id))
+    }
   }, [detail?.id])
 
-  // Abort on unmount
   useEffect(() => () => { abortRef.current?.abort() }, [])
 
   const filtered = useMemo(() => {
@@ -59,6 +81,20 @@ export default function SavedPage() {
     setMoveOutfit(null)
   }
 
+  const handleMarkWorn = () => {
+    if (!detail) return
+    const today = toDateStr(new Date())
+    logWear(today, wearNote, detail.id)
+    setWearSaved(true)
+    setShowWearModal(false)
+    setWearNote('')
+  }
+
+  const saveStylePrefs = () => {
+    storage.setStylePrefs(prefs)
+    setShowPrefs(false)
+  }
+
   const runAnalysis = async (currentDetail: SavedOutfit) => {
     abortRef.current?.abort()
     const ctrl = new AbortController()
@@ -69,9 +105,10 @@ export default function SavedPage() {
     setAiError('')
 
     const pieces = outfitItems(currentDetail, itemMap)
+    const currentPrefs = storage.getStylePrefs()
 
     try {
-      for await (const chunk of analyzeOutfit(pieces, ctrl.signal)) {
+      for await (const chunk of analyzeOutfit(pieces, ctrl.signal, currentPrefs ?? undefined)) {
         setAiText(prev => prev + chunk)
       }
       setAiStatus('done')
@@ -121,11 +158,19 @@ export default function SavedPage() {
 
   return (
     <div className="min-h-screen flex flex-col pb-28 max-w-lg mx-auto">
-      <div className="px-5 pt-12 pb-4">
-        <h1 className="text-2xl font-extrabold tracking-tight text-stone-800 dark:text-stone-100">
-          My Outfits
-        </h1>
-        <p className="text-xs text-stone-400 mt-0.5">{saved.length} saved outfit{saved.length !== 1 ? 's' : ''}</p>
+      <div className="px-5 pt-12 pb-4 flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-extrabold tracking-tight text-stone-800 dark:text-stone-100">
+            My Outfits
+          </h1>
+          <p className="text-xs text-stone-400 mt-0.5">{saved.length} saved outfit{saved.length !== 1 ? 's' : ''}</p>
+        </div>
+        <button
+          onClick={() => setShowPrefs(true)}
+          className="mt-1 px-3 py-1.5 rounded-full border border-stone-200 dark:border-stone-700 text-xs font-semibold text-stone-500 hover:border-[#7B3428] hover:text-[#7B3428] transition-colors flex items-center gap-1"
+        >
+          ✨ Style profile
+        </button>
       </div>
 
       {/* collections */}
@@ -330,7 +375,7 @@ export default function SavedPage() {
               </AnimatePresence>
 
               {/* manage buttons */}
-              <div className="flex gap-2">
+              <div className="flex gap-2 mb-3">
                 <button
                   onClick={() => { unsaveOutfit(detail.id); setDetail(null) }}
                   className="flex-1 py-3 rounded-2xl border-2 border-red-200 text-red-500 text-sm font-bold"
@@ -344,6 +389,60 @@ export default function SavedPage() {
                   📁 Move
                 </button>
               </div>
+
+              {/* wear log button */}
+              {wearSaved ? (
+                <div className="w-full py-3 rounded-2xl bg-green-50 dark:bg-green-950/30 text-green-600 text-sm font-semibold text-center">
+                  ✓ Logged as worn today
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowWearModal(true)}
+                  className="w-full py-3 rounded-2xl border-2 border-stone-200 dark:border-stone-700 text-sm font-semibold text-stone-600 dark:text-stone-300 hover:border-[#7B3428] hover:text-[#7B3428] transition-colors"
+                >
+                  👗 I wore this today
+                </button>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* wear today modal */}
+      <AnimatePresence>
+        {showWearModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowWearModal(false)}
+          >
+            <motion.div
+              initial={{ y: 100 }}
+              animate={{ y: 0 }}
+              exit={{ y: 100 }}
+              onClick={e => e.stopPropagation()}
+              className="w-full max-w-lg bg-white dark:bg-neutral-900 rounded-t-3xl p-6 pb-10"
+            >
+              <div className="w-10 h-1 bg-neutral-200 dark:bg-neutral-700 rounded-full mx-auto mb-5" />
+              <p className="font-extrabold text-lg mb-1">Log this outfit</p>
+              <p className="text-sm text-neutral-400 mb-4">Add a note about how it went — totally optional.</p>
+              <textarea
+                autoFocus
+                value={wearNote}
+                onChange={e => setWearNote(e.target.value)}
+                placeholder="Felt great, shoes were too hot for the weather, got a compliment on the bag…"
+                rows={3}
+                className="w-full rounded-2xl border-2 border-neutral-200 dark:border-neutral-700 bg-transparent px-4 py-3 text-sm focus:outline-none focus:border-[#7B3428] resize-none mb-4"
+              />
+              <button
+                onClick={handleMarkWorn}
+                className="w-full py-3.5 rounded-2xl text-white font-bold text-sm"
+                style={{ background: '#7B3428' }}
+              >
+                ✓ Log as worn today
+              </button>
             </motion.div>
           </motion.div>
         )}
@@ -432,6 +531,82 @@ export default function SavedPage() {
               >
                 Save & analyze ✨
               </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* style prefs modal */}
+      <AnimatePresence>
+        {showPrefs && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowPrefs(false)}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 30 }}
+              onClick={e => e.stopPropagation()}
+              className="w-full max-w-lg bg-white dark:bg-neutral-900 rounded-t-3xl p-6 pb-12 max-h-[85vh] overflow-y-auto"
+            >
+              <div className="w-10 h-1 bg-neutral-200 dark:bg-neutral-700 rounded-full mx-auto mb-5" />
+              <p className="font-extrabold text-lg mb-1">Style profile</p>
+              <p className="text-sm text-neutral-400 mb-5">Claude uses this to give you better feedback on your outfits.</p>
+
+              <div className="flex flex-col gap-5">
+                <div>
+                  <label className="text-xs font-bold text-neutral-600 dark:text-neutral-400 mb-2 block">Your aesthetics</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {VIBE_TAGS.map(v => {
+                      const on = prefs.aesthetics.includes(v)
+                      return (
+                        <button
+                          key={v}
+                          onClick={() => setPrefs(p => ({ ...p, aesthetics: on ? p.aesthetics.filter(a => a !== v) : [...p.aesthetics, v] }))}
+                          className={`px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all ${on ? 'border-[#7B3428] bg-[#7B3428] text-white' : 'border-neutral-200 dark:border-neutral-700 text-neutral-500'}`}
+                        >
+                          {v}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-neutral-600 dark:text-neutral-400 mb-2 block">Lifestyle / context</label>
+                  <input
+                    type="text"
+                    value={prefs.lifestyle}
+                    onChange={e => setPrefs(p => ({ ...p, lifestyle: e.target.value }))}
+                    placeholder="e.g. uni student, office job, creative freelancer"
+                    className="w-full rounded-2xl border-2 border-neutral-200 dark:border-neutral-700 bg-transparent px-4 py-3 text-sm focus:outline-none focus:border-[#7B3428]"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-neutral-600 dark:text-neutral-400 mb-2 block">Anything else Claude should know</label>
+                  <textarea
+                    value={prefs.extraContext}
+                    onChange={e => setPrefs(p => ({ ...p, extraContext: e.target.value }))}
+                    placeholder="e.g. I run hot so I avoid heavy fabrics, I have a petite frame, I tend to under-dress"
+                    rows={3}
+                    className="w-full rounded-2xl border-2 border-neutral-200 dark:border-neutral-700 bg-transparent px-4 py-3 text-sm focus:outline-none focus:border-[#7B3428] resize-none"
+                  />
+                </div>
+
+                <button
+                  onClick={saveStylePrefs}
+                  className="w-full py-3.5 rounded-2xl text-white font-bold"
+                  style={{ background: '#7B3428' }}
+                >
+                  Save profile
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}

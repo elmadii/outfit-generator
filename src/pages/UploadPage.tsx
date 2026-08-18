@@ -12,9 +12,11 @@ interface DraftWithMeta extends DraftItem {
   name: string
   colors: string[]
   vibes: VibeTag[]
+  customVibes: string
   notes: string
   removing: boolean
   removed: boolean
+  bgError: boolean
 }
 
 export default function UploadPage() {
@@ -34,8 +36,8 @@ export default function UploadPage() {
       newDrafts.push({
         id: uuid(), image: resized, category: 'tops',
         box: { x: 0, y: 0, w: 1, h: 1 },
-        name: '', colors: [], vibes: [], notes: '',
-        removing: true, removed: false,
+        name: '', colors: [], vibes: [], customVibes: '', notes: '',
+        removing: true, removed: false, bgError: false,
       })
     }
     setDrafts((prev) => {
@@ -53,7 +55,7 @@ export default function UploadPage() {
         })
         .catch(() => {
           setDrafts(prev => prev.map(d =>
-            d.id === draft.id ? { ...d, removing: false } : d
+            d.id === draft.id ? { ...d, removing: false, bgError: true } : d
           ))
         })
     }
@@ -65,9 +67,13 @@ export default function UploadPage() {
   }, [onFiles])
 
   const handleRemoveBg = async (idx: number) => {
-    setDrafts((prev) => prev.map((d, i) => i === idx ? { ...d, removing: true } : d))
-    const result = await removeBackground(drafts[idx].image)
-    setDrafts((prev) => prev.map((d, i) => i === idx ? { ...d, removing: false, removed: true, image: result } : d))
+    setDrafts(prev => prev.map((d, i) => i === idx ? { ...d, removing: true, bgError: false } : d))
+    try {
+      const result = await removeBackground(drafts[idx].image)
+      setDrafts(prev => prev.map((d, i) => i === idx ? { ...d, removing: false, removed: true, bgError: false, image: result } : d))
+    } catch {
+      setDrafts(prev => prev.map((d, i) => i === idx ? { ...d, removing: false, bgError: true } : d))
+    }
   }
 
   const update = (idx: number, patch: Partial<DraftWithMeta>) =>
@@ -93,7 +99,8 @@ export default function UploadPage() {
     setSaveError('')
     try {
       for (const d of drafts) {
-        addItem({ image: d.image, category: d.category, name: d.name.trim() || 'Untitled', colors: d.colors, vibes: d.vibes, notes: d.notes.trim() || undefined })
+        const customVibes = d.customVibes.split(',').map(s => s.trim()).filter(Boolean)
+        addItem({ image: d.image, category: d.category, name: d.name.trim() || 'Untitled', colors: d.colors, vibes: d.vibes, customVibes: customVibes.length ? customVibes : undefined, notes: d.notes.trim() || undefined })
       }
       navigate('/closet')
     } catch {
@@ -186,6 +193,21 @@ export default function UploadPage() {
               <div className="flex flex-col gap-2 pt-1">
                 {d.removed ? (
                   <div className="px-3 py-2 rounded-xl text-xs font-semibold bg-green-100 text-green-700">✅ BG removed</div>
+                ) : d.bgError ? (
+                  <>
+                    <div className="px-3 py-2 rounded-xl text-xs font-semibold bg-amber-50 text-amber-700 leading-snug">
+                      ⚠️ BG removal failed — dark items, patterns, and reflective materials can trip it up.
+                    </div>
+                    <button
+                      onClick={() => handleRemoveBg(current)}
+                      className="px-3 py-2 rounded-xl text-xs font-semibold bg-fuchsia-100 text-fuchsia-700 hover:bg-fuchsia-200 transition-colors"
+                    >
+                      ↻ Try again
+                    </button>
+                    <div className="px-3 py-2 rounded-xl text-xs font-semibold bg-stone-100 text-stone-500">
+                      Original kept — that's fine
+                    </div>
+                  </>
                 ) : !d.removing ? (
                   <button
                     onClick={() => handleRemoveBg(current)}
@@ -228,13 +250,20 @@ export default function UploadPage() {
 
             <div>
               <label className="text-xs font-bold text-neutral-700 dark:text-neutral-300 mb-2 block">Vibe</label>
-              <div className="flex gap-2 flex-wrap">
+              <div className="flex gap-2 flex-wrap mb-2">
                 {VIBE_TAGS.map((v) => (
                   <button key={v} onClick={() => toggleVibe(current, v)} className={`px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all ${d.vibes.includes(v) ? 'bg-rose-500 border-rose-500 text-white' : 'border-neutral-200 dark:border-neutral-700 text-neutral-500 hover:border-rose-300'}`}>
                     {VIBE_EMOJI[v as VibeTag]} {v}
                   </button>
                 ))}
               </div>
+              <input
+                type="text"
+                value={d.customVibes}
+                onChange={e => update(current, { customVibes: e.target.value })}
+                placeholder="Your own vibe tags: office-casual, thrifted 90s, old money…"
+                className="w-full rounded-2xl border-2 border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-4 py-2.5 text-xs focus:outline-none focus:border-rose-400 transition-colors"
+              />
             </div>
 
             <div>
