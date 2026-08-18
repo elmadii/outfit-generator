@@ -30,12 +30,12 @@ export default function UploadPage() {
     const newDrafts: DraftWithMeta[] = []
     for (const file of Array.from(files)) {
       const raw = await fileToDataUrl(file)
-      const resized = await resizeImage(raw, 400)
+      const resized = await resizeImage(raw, 600)
       newDrafts.push({
         id: uuid(), image: resized, category: 'tops',
         box: { x: 0, y: 0, w: 1, h: 1 },
         name: '', colors: [], vibes: [], notes: '',
-        removing: false, removed: false,
+        removing: true, removed: false,
       })
     }
     setDrafts((prev) => {
@@ -43,6 +43,20 @@ export default function UploadPage() {
       setCurrent(prev.length)
       return merged
     })
+    // auto-remove backgrounds in parallel
+    for (const draft of newDrafts) {
+      removeBackground(draft.image)
+        .then(result => {
+          setDrafts(prev => prev.map(d =>
+            d.id === draft.id ? { ...d, image: result, removing: false, removed: true } : d
+          ))
+        })
+        .catch(() => {
+          setDrafts(prev => prev.map(d =>
+            d.id === draft.id ? { ...d, removing: false } : d
+          ))
+        })
+    }
   }, [])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -95,7 +109,7 @@ export default function UploadPage() {
     <div className="min-h-screen flex flex-col pb-24 max-w-lg mx-auto">
       <div className="px-5 pt-12 pb-4">
         <h1 className="text-2xl font-extrabold tracking-tight">📸 Add Items</h1>
-        <p className="text-sm text-neutral-400 mt-1">One photo per item works best. Plain background = cleaner result.</p>
+        <p className="text-sm text-neutral-400 mt-1">One photo per item. Background is removed automatically ✂️</p>
       </div>
 
       <div className="px-5 mb-4">
@@ -152,19 +166,34 @@ export default function UploadPage() {
           >
             <div className="flex gap-4 items-start">
               <div
-                className="w-36 h-44 rounded-2xl overflow-hidden shrink-0 shadow"
+                className="w-36 h-44 rounded-2xl overflow-hidden shrink-0 shadow relative"
                 style={{ background: d.removed ? 'repeating-conic-gradient(#e9d5ff 0% 25%, #f5f3ff 0% 50%) 0 0 / 14px 14px' : '#f3f4f6' }}
               >
                 <img src={d.image} alt="" className="w-full h-full object-contain" />
+                {d.removing && (
+                  <div className="absolute inset-0 bg-white/80 flex flex-col items-center justify-center gap-1.5">
+                    <motion.span
+                      animate={{ rotate: 360 }}
+                      transition={{ repeat: Infinity, duration: 1.5, ease: 'linear' }}
+                      className="text-2xl"
+                    >✂️</motion.span>
+                    <p className="text-[10px] text-neutral-500 text-center leading-tight px-2">
+                      Removing<br/>background…
+                    </p>
+                  </div>
+                )}
               </div>
               <div className="flex flex-col gap-2 pt-1">
-                <button
-                  onClick={() => handleRemoveBg(current)}
-                  disabled={d.removing || d.removed}
-                  className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all ${d.removed ? 'bg-green-100 text-green-700' : 'bg-fuchsia-100 text-fuchsia-700 hover:bg-fuchsia-200'} ${d.removing ? 'opacity-50 cursor-wait' : ''}`}
-                >
-                  {d.removing ? '⏳ Removing…' : d.removed ? '✅ BG removed' : '✂️ Remove BG'}
-                </button>
+                {d.removed ? (
+                  <div className="px-3 py-2 rounded-xl text-xs font-semibold bg-green-100 text-green-700">✅ BG removed</div>
+                ) : !d.removing ? (
+                  <button
+                    onClick={() => handleRemoveBg(current)}
+                    className="px-3 py-2 rounded-xl text-xs font-semibold bg-fuchsia-100 text-fuchsia-700 hover:bg-fuchsia-200 transition-colors"
+                  >
+                    ✂️ Remove BG
+                  </button>
+                ) : null}
                 <button onClick={() => removeItem(current)} className="px-3 py-2 rounded-xl text-xs font-semibold bg-red-50 text-red-500 hover:bg-red-100">
                   🗑 Remove item
                 </button>
