@@ -3,8 +3,9 @@ import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useCloset } from '../hooks/useCloset'
 import ItemCard from '../components/ItemCard'
-import type { Category } from '../types'
-import { CATEGORIES, CATEGORY_LABEL, CATEGORY_EMOJI } from '../types'
+import type { Category, ClosetItem } from '../types'
+import { CATEGORIES, CATEGORY_LABEL, CATEGORY_EMOJI, VIBE_EMOJI } from '../types'
+import { colorHex } from '../lib/colorTheory'
 
 type SortBy = 'newest' | 'name' | 'category'
 
@@ -14,6 +15,7 @@ export default function ClosetPage() {
   const [filterCat, setFilterCat] = useState<Category | 'all'>('all')
   const [sortBy, setSortBy] = useState<SortBy>('newest')
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [detail, setDetail] = useState<ClosetItem | null>(null)
 
   const filtered = useMemo(() => {
     let list = [...items]
@@ -65,7 +67,7 @@ export default function ClosetPage() {
         <input
           type="text"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={e => setSearch(e.target.value)}
           placeholder="Search by name, color, vibe…"
           className="w-full rounded-2xl border-2 border-stone-100 dark:border-stone-800 bg-white dark:bg-stone-900 px-4 py-2.5 text-sm focus:outline-none focus:border-fuchsia-400 transition-colors"
         />
@@ -126,7 +128,7 @@ export default function ClosetPage() {
               <div className="grid grid-cols-3 gap-2">
                 <AnimatePresence>
                   {catItems.map(item => (
-                    <ItemCard key={item.id} item={item} onDelete={() => setDeleteId(item.id)} />
+                    <ItemCard key={item.id} item={item} onClick={() => setDetail(item)} onDelete={() => setDeleteId(item.id)} />
                   ))}
                 </AnimatePresence>
               </div>
@@ -137,7 +139,7 @@ export default function ClosetPage() {
         <div className="px-5 grid grid-cols-3 gap-2">
           <AnimatePresence>
             {filtered.map(item => (
-              <ItemCard key={item.id} item={item} onDelete={() => setDeleteId(item.id)} />
+              <ItemCard key={item.id} item={item} onClick={() => setDetail(item)} onDelete={() => setDeleteId(item.id)} />
             ))}
           </AnimatePresence>
           {filtered.length === 0 && (
@@ -148,6 +150,93 @@ export default function ClosetPage() {
         </div>
       )}
 
+      {/* item detail sheet */}
+      <AnimatePresence>
+        {detail && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm"
+            onClick={() => setDetail(null)}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 30 }}
+              onClick={e => e.stopPropagation()}
+              className="w-full max-w-lg bg-white dark:bg-stone-900 rounded-t-3xl p-5 pb-10 max-h-[80vh] overflow-y-auto"
+            >
+              <div className="w-10 h-1 bg-stone-200 dark:bg-stone-700 rounded-full mx-auto mb-4" />
+
+              <div className="flex gap-4 items-start mb-4">
+                <div
+                  className="w-28 h-36 rounded-2xl overflow-hidden shrink-0 shadow-sm"
+                  style={{ background: 'repeating-conic-gradient(#f3f4f6 0% 25%, #fafafa 0% 50%) 0 0 / 12px 12px' }}
+                >
+                  <img src={detail.image} alt={detail.name} className="w-full h-full object-contain" />
+                </div>
+                <div className="flex-1 min-w-0 pt-1">
+                  <p className="font-extrabold text-base text-stone-800 dark:text-stone-100 leading-tight">{detail.name}</p>
+                  <p className="text-xs text-stone-400 mt-0.5 mb-3">
+                    {CATEGORY_EMOJI[detail.category]} {CATEGORY_LABEL[detail.category]}
+                  </p>
+
+                  {detail.colors.length > 0 && (
+                    <div className="flex gap-1.5 flex-wrap mb-2">
+                      {detail.colors.map(c => (
+                        <span key={c} className="w-4 h-4 rounded-full border border-white shadow-sm" style={{ background: colorHex(c) }} title={c} />
+                      ))}
+                    </div>
+                  )}
+
+                  {detail.vibes.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {detail.vibes.map(v => (
+                        <span key={v} className="text-[10px] px-2 py-0.5 rounded-full bg-fuchsia-100 dark:bg-fuchsia-900/40 text-fuchsia-700 dark:text-fuchsia-300">
+                          {VIBE_EMOJI[v]} {v}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {detail.customVibes && detail.customVibes.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {detail.customVibes.map(v => (
+                        <span key={v} className="text-[10px] px-2 py-0.5 rounded-full bg-stone-100 dark:bg-stone-800 text-stone-500">
+                          {v}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* AI description */}
+              {detail.aiDescription && (
+                <div className="rounded-2xl border border-violet-100 dark:border-violet-900 bg-violet-50/60 dark:bg-violet-950/20 px-4 py-3 mb-4">
+                  <p className="text-[10px] font-bold text-violet-400 uppercase tracking-widest mb-1">✨ AI Description</p>
+                  <p className="text-xs text-stone-600 dark:text-stone-300 leading-relaxed">{detail.aiDescription}</p>
+                </div>
+              )}
+
+              {/* notes */}
+              {detail.notes && (
+                <p className="text-xs text-stone-400 mb-4 px-1">📝 {detail.notes}</p>
+              )}
+
+              <button
+                onClick={() => { setDeleteId(detail.id); setDetail(null) }}
+                className="w-full py-3 rounded-2xl border-2 border-red-200 text-red-500 text-sm font-bold"
+              >
+                🗑 Remove from wardrobe
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* delete confirm */}
       <AnimatePresence>
         {deleteId && (
@@ -155,7 +244,7 @@ export default function ClosetPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm"
+            className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 backdrop-blur-sm"
             onClick={() => setDeleteId(null)}
           >
             <motion.div

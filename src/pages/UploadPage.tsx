@@ -6,17 +6,22 @@ import type { Category, VibeTag, DraftItem } from '../types'
 import { CATEGORIES, CATEGORY_LABEL, CATEGORY_EMOJI, VIBE_TAGS, VIBE_EMOJI } from '../types'
 import { COLOR_NAMES, colorHex } from '../lib/colorTheory'
 import { fileToDataUrl, resizeImage, removeBackground } from '../lib/imageUtils'
+import { getApiKey, tagItem } from '../lib/ai'
 import { useCloset } from '../hooks/useCloset'
+
+type TagStatus = 'idle' | 'loading' | 'done' | 'error' | 'no-key'
 
 interface DraftWithMeta extends DraftItem {
   name: string
   colors: string[]
   vibes: VibeTag[]
   customVibes: string
+  aiDescription: string
   notes: string
   removing: boolean
   removed: boolean
   bgError: boolean
+  tagStatus: TagStatus
 }
 
 export default function UploadPage() {
@@ -26,9 +31,11 @@ export default function UploadPage() {
   const [current, setCurrent] = useState(0)
   const [saveError, setSaveError] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
+  const abortRefs = useRef<Record<string, AbortController>>({})
 
   const onFiles = useCallback(async (files: FileList | null) => {
     if (!files?.length) return
+    const hasKey = !!getApiKey()
     const newDrafts: DraftWithMeta[] = []
     for (const file of Array.from(files)) {
       const raw = await fileToDataUrl(file)
@@ -36,17 +43,20 @@ export default function UploadPage() {
       newDrafts.push({
         id: uuid(), image: resized, category: 'tops',
         box: { x: 0, y: 0, w: 1, h: 1 },
-        name: '', colors: [], vibes: [], customVibes: '', notes: '',
+        name: '', colors: [], vibes: [], customVibes: '',
+        aiDescription: '', notes: '',
         removing: true, removed: false, bgError: false,
+        tagStatus: hasKey ? 'loading' : 'no-key',
       })
     }
-    setDrafts((prev) => {
+    setDrafts(prev => {
       const merged = [...prev, ...newDrafts]
       setCurrent(prev.length)
       return merged
     })
-    // auto-remove backgrounds in parallel
+
     for (const draft of newDrafts) {
+      // BG removal
       removeBackground(draft.image)
         .then(result => {
           setDrafts(prev => prev.map(d =>
@@ -58,6 +68,32 @@ export default function UploadPage() {
             d.id === draft.id ? { ...d, removing: false, bgError: true } : d
           ))
         })
+
+      // Auto-tag (runs in parallel with BG removal)
+      if (hasKey) {
+        const ctrl = new AbortController()
+        abortRefs.current[draft.id] = ctrl
+        tagItem(draft.image, ctrl.signal)
+          .then(result => {
+            setDrafts(prev => prev.map(d => {
+              if (d.id !== draft.id) return d
+              return {
+                ...d,
+                name: d.name || result.suggestedName,
+                vibes: d.vibes.length ? d.vibes : result.vibes.filter(v => VIBE_TAGS.includes(v as VibeTag)) as VibeTag[],
+                colors: d.colors.length ? d.colors : result.colors,
+                aiDescription: result.description,
+                tagStatus: 'done',
+              }
+            }))
+          })
+          .catch(err => {
+            if ((err as Error).name === 'AbortError') return
+            setDrafts(prev => prev.map(d =>
+              d.id === draft.id ? { ...d, tagStatus: 'error' } : d
+            ))
+          })
+      }
     }
   }, [])
 
@@ -76,8 +112,35 @@ export default function UploadPage() {
     }
   }
 
+  const handleRetryTag = async (idx: number) => {
+    const draft = drafts[idx]
+    if (!draft) return
+    abortRefs.current[draft.id]?.abort()
+    const ctrl = new AbortController()
+    abortRefs.current[draft.id] = ctrl
+    setDrafts(prev => prev.map((d, i) => i === idx ? { ...d, tagStatus: 'loading' } : d))
+    try {
+      const result = await tagItem(draft.image, ctrl.signal)
+      setDrafts(prev => prev.map((d, i) => {
+        if (i !== idx) return d
+        return {
+          ...d,
+          name: d.name || result.suggestedName,
+          vibes: result.vibes.filter(v => VIBE_TAGS.includes(v as VibeTag)) as VibeTag[],
+          colors: result.colors,
+          aiDescription: result.description,
+          tagStatus: 'done',
+        }
+      }))
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') {
+        setDrafts(prev => prev.map((d, i) => i === idx ? { ...d, tagStatus: 'error' } : d))
+      }
+    }
+  }
+
   const update = (idx: number, patch: Partial<DraftWithMeta>) =>
-    setDrafts((prev) => prev.map((d, i) => i === idx ? { ...d, ...patch } : d))
+    setDrafts(prev => prev.map((d, i) => i === idx ? { ...d, ...patch } : d))
 
   const toggleColor = (idx: number, color: string) => {
     const colors = drafts[idx].colors
@@ -90,6 +153,7 @@ export default function UploadPage() {
   }
 
   const removeItem = (idx: number) => {
+    abortRefs.current[drafts[idx].id]?.abort()
     const next = drafts.filter((_, i) => i !== idx)
     setDrafts(next)
     setCurrent(Math.min(current, Math.max(0, next.length - 1)))
@@ -100,7 +164,14 @@ export default function UploadPage() {
     try {
       for (const d of drafts) {
         const customVibes = d.customVibes.split(',').map(s => s.trim()).filter(Boolean)
-        addItem({ image: d.image, category: d.category, name: d.name.trim() || 'Untitled', colors: d.colors, vibes: d.vibes, customVibes: customVibes.length ? customVibes : undefined, notes: d.notes.trim() || undefined })
+        addItem({
+          image: d.image, category: d.category,
+          name: d.name.trim() || 'Untitled',
+          colors: d.colors, vibes: d.vibes,
+          customVibes: customVibes.length ? customVibes : undefined,
+          aiDescription: d.aiDescription || undefined,
+          notes: d.notes.trim() || undefined,
+        })
       }
       navigate('/closet')
     } catch {
@@ -116,14 +187,14 @@ export default function UploadPage() {
     <div className="min-h-screen flex flex-col pb-24 max-w-lg mx-auto">
       <div className="px-5 pt-12 pb-4">
         <h1 className="text-2xl font-extrabold tracking-tight">📸 Add Items</h1>
-        <p className="text-sm text-neutral-400 mt-1">One photo per item. Background is removed automatically ✂️</p>
+        <p className="text-sm text-neutral-400 mt-1">Drop a photo — AI auto-tags it ✨</p>
       </div>
 
       <div className="px-5 mb-4">
         <motion.div
           whileTap={{ scale: 0.97 }}
           onDrop={handleDrop}
-          onDragOver={(e) => e.preventDefault()}
+          onDragOver={e => e.preventDefault()}
           onClick={() => fileRef.current?.click()}
           className="w-full rounded-3xl border-2 border-dashed border-fuchsia-200 dark:border-fuchsia-900 bg-fuchsia-50/50 dark:bg-fuchsia-950/20 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-fuchsia-50 dark:hover:bg-fuchsia-950/30 transition-colors py-8"
         >
@@ -131,7 +202,7 @@ export default function UploadPage() {
           <p className="text-sm font-semibold text-fuchsia-600 dark:text-fuchsia-400">Drop photos or tap to browse</p>
           <p className="text-xs text-neutral-400">Multiple photos allowed · one item per photo</p>
         </motion.div>
-        <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => onFiles(e.target.files)} />
+        <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={e => onFiles(e.target.files)} />
       </div>
 
       {drafts.length > 0 && (
@@ -153,9 +224,18 @@ export default function UploadPage() {
               <button
                 key={dr.id}
                 onClick={() => setCurrent(i)}
-                className={`shrink-0 w-14 h-14 rounded-xl overflow-hidden border-2 transition-all ${i === current ? 'border-fuchsia-500 ring-2 ring-fuchsia-200' : dr.name ? 'border-green-300 opacity-70' : 'border-transparent opacity-40'}`}
+                className={`shrink-0 w-14 h-14 rounded-xl overflow-hidden border-2 transition-all relative ${i === current ? 'border-fuchsia-500 ring-2 ring-fuchsia-200' : dr.name ? 'border-green-300 opacity-70' : 'border-transparent opacity-40'}`}
               >
                 <img src={dr.image} className="w-full h-full object-cover" alt="" />
+                {dr.tagStatus === 'loading' && (
+                  <div className="absolute inset-0 bg-white/60 flex items-center justify-center">
+                    <motion.span
+                      animate={{ rotate: 360 }}
+                      transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+                      className="text-xs"
+                    >✨</motion.span>
+                  </div>
+                )}
               </button>
             ))}
           </div>
@@ -191,12 +271,13 @@ export default function UploadPage() {
                 )}
               </div>
               <div className="flex flex-col gap-2 pt-1">
+                {/* BG status */}
                 {d.removed ? (
                   <div className="px-3 py-2 rounded-xl text-xs font-semibold bg-green-100 text-green-700">✅ BG removed</div>
                 ) : d.bgError ? (
                   <>
-                    <div className="px-3 py-2 rounded-xl text-xs font-semibold bg-amber-50 text-amber-700 leading-snug">
-                      ⚠️ BG removal failed — dark items, patterns, and reflective materials can trip it up.
+                    <div className="px-3 py-2 rounded-xl text-xs font-semibold bg-amber-50 text-amber-700 leading-snug max-w-[140px]">
+                      ⚠️ BG removal failed — patterns, dark items, or reflective materials can trip it up.
                     </div>
                     <button
                       onClick={() => handleRemoveBg(current)}
@@ -205,7 +286,7 @@ export default function UploadPage() {
                       ↻ Try again
                     </button>
                     <div className="px-3 py-2 rounded-xl text-xs font-semibold bg-stone-100 text-stone-500">
-                      Original kept — that's fine
+                      Original kept ✓
                     </div>
                   </>
                 ) : !d.removing ? (
@@ -216,21 +297,67 @@ export default function UploadPage() {
                     ✂️ Remove BG
                   </button>
                 ) : null}
+
+                {/* AI tag status */}
+                {d.tagStatus === 'loading' && (
+                  <div className="px-3 py-2 rounded-xl text-xs font-semibold bg-violet-50 text-violet-500 flex items-center gap-1.5">
+                    <motion.span animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}>✨</motion.span>
+                    Auto-tagging…
+                  </div>
+                )}
+                {d.tagStatus === 'done' && (
+                  <div className="px-3 py-2 rounded-xl text-xs font-semibold bg-violet-50 text-violet-600">✨ Auto-tagged</div>
+                )}
+                {d.tagStatus === 'error' && (
+                  <button
+                    onClick={() => handleRetryTag(current)}
+                    className="px-3 py-2 rounded-xl text-xs font-semibold bg-violet-50 text-violet-500 hover:bg-violet-100 transition-colors"
+                  >
+                    ↻ Retry tag
+                  </button>
+                )}
+                {d.tagStatus === 'no-key' && (
+                  <div className="px-3 py-2 rounded-xl text-xs text-neutral-400 leading-snug max-w-[140px]">
+                    Add an AI key in My Outfits for auto-tagging
+                  </div>
+                )}
+
                 <button onClick={() => removeItem(current)} className="px-3 py-2 rounded-xl text-xs font-semibold bg-red-50 text-red-500 hover:bg-red-100">
-                  🗑 Remove item
+                  🗑 Remove
                 </button>
               </div>
             </div>
 
+            {/* AI description card */}
+            <AnimatePresence>
+              {d.aiDescription && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="rounded-2xl border border-violet-100 dark:border-violet-900 bg-violet-50/60 dark:bg-violet-950/20 px-4 py-3"
+                >
+                  <p className="text-[10px] font-bold text-violet-400 uppercase tracking-widest mb-1">✨ AI Description</p>
+                  <p className="text-xs text-neutral-600 dark:text-neutral-300 leading-relaxed">{d.aiDescription}</p>
+                  <button
+                    onClick={() => update(current, { aiDescription: '' })}
+                    className="mt-2 text-[10px] text-neutral-400 hover:text-red-400 transition-colors"
+                  >
+                    Clear
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <div>
               <label className="text-xs font-bold text-neutral-700 dark:text-neutral-300 mb-1.5 block">Item name <span className="text-fuchsia-500">*</span></label>
-              <input type="text" value={d.name} onChange={(e) => update(current, { name: e.target.value })} placeholder="e.g. Gray Oversized Hoodie" className="w-full rounded-2xl border-2 border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-4 py-3 text-sm focus:outline-none focus:border-fuchsia-400 transition-colors" />
+              <input type="text" value={d.name} onChange={e => update(current, { name: e.target.value })} placeholder="e.g. Gray Oversized Hoodie" className="w-full rounded-2xl border-2 border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-4 py-3 text-sm focus:outline-none focus:border-fuchsia-400 transition-colors" />
             </div>
 
             <div>
               <label className="text-xs font-bold text-neutral-700 dark:text-neutral-300 mb-2 block">Category</label>
               <div className="flex gap-2 flex-wrap">
-                {CATEGORIES.map((cat) => (
+                {CATEGORIES.map(cat => (
                   <button key={cat} onClick={() => update(current, { category: cat as Category })} className={`px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all ${d.category === cat ? 'bg-fuchsia-500 border-fuchsia-500 text-white' : 'border-neutral-200 dark:border-neutral-700 text-neutral-500 hover:border-fuchsia-300'}`}>
                     {CATEGORY_EMOJI[cat as Category]} {CATEGORY_LABEL[cat as Category]}
                   </button>
@@ -241,7 +368,7 @@ export default function UploadPage() {
             <div>
               <label className="text-xs font-bold text-neutral-700 dark:text-neutral-300 mb-2 block">Colors</label>
               <div className="flex gap-2 flex-wrap">
-                {COLOR_NAMES.map((c) => (
+                {COLOR_NAMES.map(c => (
                   <button key={c} onClick={() => toggleColor(current, c)} title={c} className={`w-7 h-7 rounded-full transition-all hover:scale-110 active:scale-90 ${d.colors.includes(c) ? 'ring-2 ring-fuchsia-400 scale-110' : 'shadow-sm'}`} style={{ background: colorHex(c), outline: d.colors.includes(c) ? '2px solid #d946ef' : '2px solid rgba(255,255,255,0.8)' }} />
                 ))}
               </div>
@@ -251,7 +378,7 @@ export default function UploadPage() {
             <div>
               <label className="text-xs font-bold text-neutral-700 dark:text-neutral-300 mb-2 block">Vibe</label>
               <div className="flex gap-2 flex-wrap mb-2">
-                {VIBE_TAGS.map((v) => (
+                {VIBE_TAGS.map(v => (
                   <button key={v} onClick={() => toggleVibe(current, v)} className={`px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all ${d.vibes.includes(v) ? 'bg-rose-500 border-rose-500 text-white' : 'border-neutral-200 dark:border-neutral-700 text-neutral-500 hover:border-rose-300'}`}>
                     {VIBE_EMOJI[v as VibeTag]} {v}
                   </button>
@@ -261,14 +388,14 @@ export default function UploadPage() {
                 type="text"
                 value={d.customVibes}
                 onChange={e => update(current, { customVibes: e.target.value })}
-                placeholder="Your own vibe tags: office-casual, thrifted 90s, old money…"
+                placeholder="Your own vibes: office-casual, thrifted 90s, old money…"
                 className="w-full rounded-2xl border-2 border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-4 py-2.5 text-xs focus:outline-none focus:border-rose-400 transition-colors"
               />
             </div>
 
             <div>
               <label className="text-xs font-bold text-neutral-700 dark:text-neutral-300 mb-1.5 block">Notes (optional)</label>
-              <input type="text" value={d.notes} onChange={(e) => update(current, { notes: e.target.value })} placeholder="fits oversized, slightly worn, gift from sister…" className="w-full rounded-2xl border-2 border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-4 py-3 text-sm focus:outline-none focus:border-fuchsia-400 transition-colors" />
+              <input type="text" value={d.notes} onChange={e => update(current, { notes: e.target.value })} placeholder="fits oversized, slightly worn, gift from sister…" className="w-full rounded-2xl border-2 border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-4 py-3 text-sm focus:outline-none focus:border-fuchsia-400 transition-colors" />
             </div>
 
             {saveError && <p className="text-xs text-red-500 bg-red-50 rounded-xl px-4 py-3">{saveError}</p>}

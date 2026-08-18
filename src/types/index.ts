@@ -66,6 +66,7 @@ export interface ClosetItem {
   colors: string[] // color names, see lib/colorTheory.ts
   vibes: VibeTag[]
   customVibes?: string[] // user-defined free-text vibes
+  aiDescription?: string // Claude-generated description of the piece
   notes?: string
   createdAt: number
   timesUsed: number

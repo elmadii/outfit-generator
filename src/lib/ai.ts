@@ -17,6 +17,36 @@ export function clearApiKey(): void {
   try { localStorage.removeItem(KEY_STORE) } catch { /* ignore */ }
 }
 
+export interface TagResult {
+  suggestedName: string
+  vibes: string[]
+  colors: string[]
+  description: string
+}
+
+export async function tagItem(imageDataUrl: string, signal?: AbortSignal): Promise<TagResult> {
+  const apiKey = getApiKey()
+  if (!apiKey) throw new Error('no-key')
+
+  const response = await fetch('/api/tag-item', {
+    method: 'POST',
+    headers: {
+      'x-anthropic-key': apiKey,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ image: imageDataUrl }),
+    signal,
+  })
+
+  if (!response.ok) {
+    if (response.status === 401) throw new Error('invalid-key')
+    if (response.status === 429) throw new Error('rate-limited')
+    throw new Error(`api-error-${response.status}`)
+  }
+
+  return response.json() as Promise<TagResult>
+}
+
 export async function* analyzeOutfit(
   items: ClosetItem[],
   signal?: AbortSignal,
@@ -29,7 +59,8 @@ export async function* analyzeOutfit(
     const parts: string[] = [`${item.category}: "${item.name}"`]
     if (item.colors.length) parts.push(`colors: ${item.colors.join(', ')}`)
     if (item.vibes.length) parts.push(`vibe: ${item.vibes.join(', ')}`)
-    if (item.notes) parts.push(`note: ${item.notes}`)
+    if (item.aiDescription) parts.push(`detail: ${item.aiDescription}`)
+    else if (item.notes) parts.push(`note: ${item.notes}`)
     return '• ' + parts.join(' | ')
   }).join('\n')
 
