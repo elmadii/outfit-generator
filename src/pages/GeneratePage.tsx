@@ -8,7 +8,55 @@ import { storage } from '../lib/storage'
 import { fetchWeather, weatherStyleHint } from '../lib/weather'
 import type { WeatherData } from '../lib/weather'
 import type { GeneratedOutfit, ClosetItem, VibeTag } from '../types'
-import { CATEGORY_LABEL, CATEGORY_EMOJI } from '../types'
+import { CATEGORY_LABEL, CATEGORY_EMOJI, VIBE_EMOJI } from '../types'
+import { colorHex, paletteLabel } from '../lib/colorTheory'
+
+/* ── Why breakdown ── */
+function WhyBreakdown({ outfit, itemMap }: { outfit: GeneratedOutfit; itemMap: Map<string, ClosetItem> }) {
+  const pieces = [outfit.picks.top, outfit.picks.layer, outfit.picks.bottom, outfit.picks.shoes, outfit.picks.bag, outfit.picks.accessory]
+    .filter(Boolean).map(id => itemMap.get(id!)).filter(Boolean) as ClosetItem[]
+
+  const allColors = [...new Set(pieces.flatMap(p => p.colors))]
+  const palette = paletteLabel(pieces.map(p => p.colors))
+
+  const vibeCount = (() => {
+    const m = new Map<VibeTag, number>()
+    for (const p of pieces) for (const v of p.vibes) m.set(v, (m.get(v) ?? 0) + 1)
+    return [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3)
+  })()
+
+  const catLabels = pieces.map(p => CATEGORY_LABEL[p.category])
+
+  return (
+    <div className="flex flex-col gap-1.5 mt-2 pt-2 border-t border-stone-100 dark:border-stone-800">
+      {allColors.length > 0 && (
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-[11px] shrink-0">🎨</span>
+          <div className="flex gap-1 shrink-0">
+            {allColors.slice(0, 5).map(c => (
+              <span key={c} className="w-3 h-3 rounded-full border border-white/80 shadow-sm" style={{ background: colorHex(c) }} />
+            ))}
+          </div>
+          <span className="text-[10px] text-stone-400 truncate">
+            {allColors.slice(0, 3).join(' · ')}{palette ? ` — ${palette.toLowerCase()}` : ''}
+          </span>
+        </div>
+      )}
+      {vibeCount.length > 0 && (
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-[11px] shrink-0">✨</span>
+          <span className="text-[10px] text-stone-400 truncate">
+            {vibeCount.map(([v, n]) => `${VIBE_EMOJI[v] ?? ''} ${v} ×${n}`).join('  ')}
+          </span>
+        </div>
+      )}
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="text-[11px] shrink-0">👗</span>
+        <span className="text-[10px] text-stone-400 truncate">{catLabels.join(' · ')}</span>
+      </div>
+    </div>
+  )
+}
 
 /* ── Occasion config ── */
 interface OccasionTag {
@@ -371,9 +419,7 @@ export default function GeneratePage() {
                           exit={{ height: 0, opacity: 0 }}
                           className="overflow-hidden"
                         >
-                          <p className="text-xs text-stone-500 dark:text-stone-400 mt-2 leading-relaxed">
-                            {outfit.reason}
-                          </p>
+                          <WhyBreakdown outfit={outfit} itemMap={itemMap} />
                         </motion.div>
                       )}
                     </AnimatePresence>

@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useCloset } from '../hooks/useCloset'
 import ItemCard from '../components/ItemCard'
@@ -10,6 +10,7 @@ import { colorHex } from '../lib/colorTheory'
 type SortBy = 'newest' | 'name' | 'category'
 
 export default function ClosetPage() {
+  const navigate = useNavigate()
   const { items, deleteItem } = useCloset()
   const [search, setSearch] = useState('')
   const [filterCat, setFilterCat] = useState<Category | 'all'>('all')
@@ -225,6 +226,14 @@ export default function ClosetPage() {
               {detail.notes && (
                 <p className="text-xs text-stone-400 mb-4 px-1">📝 {detail.notes}</p>
               )}
+
+              <button
+                onClick={() => { setDetail(null); navigate(`/anchor?item=${detail.id}`) }}
+                className="w-full py-3 rounded-2xl text-white text-sm font-bold mb-3"
+                style={{ background: '#7B3428' }}
+              >
+                ✨ Style this piece
+              </button>
 
               <button
                 onClick={() => { setDeleteId(detail.id); setDetail(null) }}

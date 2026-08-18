@@ -139,6 +139,75 @@ export function generateOutfits(
   return outfits.sort((a, b) => b.score - a.score)
 }
 
+export function generateAround(
+  anchor: ClosetItem,
+  items: ClosetItem[],
+  count = 8,
+  pairings: Record<string, number> = {},
+): GeneratedOutfit[] {
+  const cat = anchor.category
+  const others = items.filter(i => i.id !== anchor.id)
+
+  const tops        = cat === 'tops'        ? [anchor] : others.filter(i => i.category === 'tops')
+  const layers      = cat === 'layer'       ? [anchor] : others.filter(i => i.category === 'layer')
+  const bottoms     = cat === 'bottoms'     ? [anchor] : others.filter(i => i.category === 'bottoms')
+  const shoes       = cat === 'shoes'       ? [anchor] : others.filter(i => i.category === 'shoes')
+  const bags        = cat === 'bags'        ? [anchor] : others.filter(i => i.category === 'bags')
+  const accessories = cat === 'accessories' ? [anchor] : others.filter(i => i.category === 'accessories')
+
+  if (!tops.length || !bottoms.length || !shoes.length) return []
+
+  const seen = new Set<string>()
+  const outfits: GeneratedOutfit[] = []
+  let attempts = 0
+
+  while (outfits.length < count && attempts < count * 25) {
+    attempts++
+    const top    = tops[Math.floor(Math.random() * tops.length)]
+    const bottom = bottoms[Math.floor(Math.random() * bottoms.length)]
+    const shoe   = shoes[Math.floor(Math.random() * shoes.length)]
+
+    // Optional slots: always force anchor if it belongs there, otherwise random
+    const outer = cat === 'layer'
+      ? anchor
+      : (layers.length && Math.random() > 0.45 ? layers[Math.floor(Math.random() * layers.length)] : null)
+    const bag = cat === 'bags'
+      ? anchor
+      : (bags.length && Math.random() > 0.5 ? bags[Math.floor(Math.random() * bags.length)] : null)
+    const acc = cat === 'accessories'
+      ? anchor
+      : (accessories.length && Math.random() > 0.6 ? accessories[Math.floor(Math.random() * accessories.length)] : null)
+
+    const key = [top.id, bottom.id, shoe.id, outer?.id ?? ''].join(':')
+    if (seen.has(key)) continue
+    seen.add(key)
+
+    const score = calcScore(top, bottom, shoe, outer, bag, acc, pairings)
+    const allVibes = [...new Set([...top.vibes, ...bottom.vibes, ...shoe.vibes])] as VibeTag[]
+    const dominantVibe = allVibes.length
+      ? allVibes.reduce((a, b) => {
+          const ac = [top, bottom, shoe].filter(i => i.vibes.includes(a)).length
+          const bc = [top, bottom, shoe].filter(i => i.vibes.includes(b)).length
+          return ac >= bc ? a : b
+        })
+      : null
+
+    const { name: vibeName, reason: baseReason } = pickVibeName(allVibes, score)
+    const colorLists = [top.colors, bottom.colors, shoe.colors, outer?.colors ?? [], bag?.colors ?? [], acc?.colors ?? []]
+    const palette = paletteLabel(colorLists)
+    const reason = `${baseReason} ${palette}.`
+
+    const picks: OutfitPick = { top: top.id, bottom: bottom.id, shoes: shoe.id }
+    if (outer) picks.layer = outer.id
+    if (bag)   picks.bag = bag.id
+    if (acc)   picks.accessory = acc.id
+
+    outfits.push({ id: uuid(), picks, score, vibeName, reason, dominantVibe, createdAt: Date.now() })
+  }
+
+  return outfits.sort((a, b) => b.score - a.score)
+}
+
 export function outfitItems(outfit: GeneratedOutfit, itemMap: Map<string, ClosetItem>): ClosetItem[] {
   return [outfit.picks.top, outfit.picks.layer, outfit.picks.bottom, outfit.picks.shoes, outfit.picks.bag, outfit.picks.accessory]
     .filter(Boolean).map(id => itemMap.get(id!)).filter(Boolean) as ClosetItem[]
