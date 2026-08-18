@@ -11,7 +11,7 @@ const LINKS = [
 
 export default function Nav() {
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-50 bg-white/90 dark:bg-stone-950/90 backdrop-blur-md border-t border-stone-100 dark:border-stone-800">
+    <nav className="fixed bottom-0 inset-x-0 z-50 bg-white/90 dark:bg-stone-950/90 backdrop-blur-md border-t border-stone-100 dark:border-stone-800" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
       <div className="max-w-lg mx-auto flex">
         {LINKS.map(({ to, label, title }) => (
           <NavLink
