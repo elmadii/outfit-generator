@@ -1,9 +1,14 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSaved } from '../hooks/useSaved'
 import { useCloset } from '../hooks/useCloset'
 import OutfitCard from '../components/OutfitCard'
+import { outfitItems } from '../lib/outfitEngine'
+import { getApiKey, setApiKey, clearApiKey, analyzeOutfit } from '../lib/ai'
+import { CATEGORY_EMOJI } from '../types'
 import type { SavedOutfit } from '../types'
+
+type AiStatus = 'idle' | 'loading' | 'done' | 'error'
 
 export default function SavedPage() {
   const { saved, collections, saveOutfit, unsaveOutfit, isSaved, addCollection, deleteCollection } = useSaved()
@@ -14,7 +19,26 @@ export default function SavedPage() {
   const [detail, setDetail] = useState<SavedOutfit | null>(null)
   const [moveOutfit, setMoveOutfit] = useState<SavedOutfit | null>(null)
 
+  // AI analysis state
+  const [aiStatus, setAiStatus] = useState<AiStatus>('idle')
+  const [aiText, setAiText] = useState('')
+  const [aiError, setAiError] = useState('')
+  const [showKeyPrompt, setShowKeyPrompt] = useState(false)
+  const [keyInput, setKeyInput] = useState('')
+  const abortRef = useRef<AbortController | null>(null)
+
   const itemMap = useMemo(() => new Map(items.map(i => [i.id, i])), [items])
+
+  // Reset AI state when outfit changes or detail closes
+  useEffect(() => {
+    abortRef.current?.abort()
+    setAiStatus('idle')
+    setAiText('')
+    setAiError('')
+  }, [detail?.id])
+
+  // Abort on unmount
+  useEffect(() => () => { abortRef.current?.abort() }, [])
 
   const filtered = useMemo(() => {
     if (filterCol === 'all') return saved
@@ -33,6 +57,60 @@ export default function SavedPage() {
     unsaveOutfit(outfit.id)
     saveOutfit({ ...outfit }, collectionId)
     setMoveOutfit(null)
+  }
+
+  const runAnalysis = async (currentDetail: SavedOutfit) => {
+    abortRef.current?.abort()
+    const ctrl = new AbortController()
+    abortRef.current = ctrl
+
+    setAiStatus('loading')
+    setAiText('')
+    setAiError('')
+
+    const pieces = outfitItems(currentDetail, itemMap)
+
+    try {
+      for await (const chunk of analyzeOutfit(pieces, ctrl.signal)) {
+        setAiText(prev => prev + chunk)
+      }
+      setAiStatus('done')
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') return
+      const msg = (err as Error).message
+      if (msg === 'no-key') {
+        setAiStatus('idle')
+        setShowKeyPrompt(true)
+      } else if (msg === 'invalid-key') {
+        clearApiKey()
+        setAiError('API key rejected. Tap "✨ Analyze" again to re-enter it.')
+        setAiStatus('error')
+      } else if (msg === 'rate-limited') {
+        setAiError('Rate limit hit — wait a moment and try again.')
+        setAiStatus('error')
+      } else {
+        setAiError('Something went wrong. Try again.')
+        setAiStatus('error')
+      }
+    }
+  }
+
+  const handleAnalyze = () => {
+    if (!detail) return
+    if (!getApiKey()) {
+      setShowKeyPrompt(true)
+      return
+    }
+    runAnalysis(detail)
+  }
+
+  const handleSaveKey = () => {
+    const trimmed = keyInput.trim()
+    if (!trimmed) return
+    setApiKey(trimmed)
+    setKeyInput('')
+    setShowKeyPrompt(false)
+    if (detail) runAnalysis(detail)
   }
 
   return (
@@ -154,7 +232,7 @@ export default function SavedPage() {
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 30 }}
               onClick={e => e.stopPropagation()}
-              className="w-full max-w-lg bg-white dark:bg-neutral-900 rounded-t-3xl p-6 pb-12 max-h-[80vh] overflow-y-auto"
+              className="w-full max-w-lg bg-white dark:bg-neutral-900 rounded-t-3xl p-6 pb-12 max-h-[85vh] overflow-y-auto"
             >
               <div className="w-10 h-1 bg-neutral-200 dark:bg-neutral-700 rounded-full mx-auto mb-5" />
               <h3 className="font-extrabold text-xl mb-1">{detail.vibeName}</h3>
@@ -163,8 +241,9 @@ export default function SavedPage() {
                 {detail.collectionId && ` · ${collections.find(c => c.id === detail.collectionId)?.name}`}
               </p>
 
-              <div className="grid grid-cols-3 gap-1 mb-4 rounded-2xl overflow-hidden">
-                {[detail.picks.top, detail.picks.bottom, detail.picks.shoes, detail.picks.bag, detail.picks.accessory]
+              {/* image grid */}
+              <div className="grid grid-cols-3 gap-1 mb-3 rounded-2xl overflow-hidden">
+                {[detail.picks.top, detail.picks.layer, detail.picks.bottom, detail.picks.shoes, detail.picks.bag, detail.picks.accessory]
                   .filter(Boolean).map(id => {
                     const item = itemMap.get(id!)
                     if (!item) return null
@@ -176,7 +255,74 @@ export default function SavedPage() {
                   })}
               </div>
 
-              <div className="flex gap-2 mb-3">
+              {/* item pills */}
+              <div className="flex flex-wrap gap-1.5 mb-4">
+                {outfitItems(detail, itemMap).map(item => (
+                  <span
+                    key={item.id}
+                    className="text-xs bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 rounded-full px-3 py-1"
+                  >
+                    {CATEGORY_EMOJI[item.category]} {item.name}
+                  </span>
+                ))}
+              </div>
+
+              {/* analyze button */}
+              <motion.button
+                whileTap={{ scale: 0.97 }}
+                onClick={handleAnalyze}
+                disabled={aiStatus === 'loading'}
+                className="w-full py-3 rounded-2xl bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white font-bold text-sm shadow-md disabled:opacity-60 mb-3"
+              >
+                {aiStatus === 'loading'
+                  ? '✨ Analyzing...'
+                  : aiStatus === 'done'
+                  ? '🔁 Re-analyze'
+                  : '✨ Analyze this fit'}
+              </motion.button>
+
+              {/* analysis panel */}
+              <AnimatePresence>
+                {aiStatus !== 'idle' && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="bg-violet-50 dark:bg-violet-950/30 rounded-2xl p-4 mb-4"
+                  >
+                    {aiStatus === 'loading' && !aiText && (
+                      <div className="flex items-center gap-2.5">
+                        <motion.span
+                          animate={{ rotate: 360 }}
+                          transition={{ repeat: Infinity, duration: 1.2, ease: 'linear' }}
+                          className="text-lg"
+                        >
+                          ✨
+                        </motion.span>
+                        <p className="text-sm text-neutral-400">Reading your fit…</p>
+                      </div>
+                    )}
+                    {aiText && (
+                      <p className="text-sm text-neutral-700 dark:text-neutral-200 whitespace-pre-wrap leading-relaxed">
+                        {aiText}
+                        {aiStatus === 'loading' && (
+                          <motion.span
+                            animate={{ opacity: [1, 0] }}
+                            transition={{ repeat: Infinity, duration: 0.6 }}
+                            className="inline-block w-0.5 h-3.5 bg-violet-400 ml-0.5 align-middle"
+                          />
+                        )}
+                      </p>
+                    )}
+                    {aiStatus === 'error' && (
+                      <p className="text-sm text-red-500">{aiError}</p>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* manage buttons */}
+              <div className="flex gap-2">
                 <button
                   onClick={() => { unsaveOutfit(detail.id); setDetail(null) }}
                   className="flex-1 py-3 rounded-2xl border-2 border-red-200 text-red-500 text-sm font-bold"
@@ -230,6 +376,54 @@ export default function SavedPage() {
                   </button>
                 ))}
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* API key prompt modal */}
+      <AnimatePresence>
+        {showKeyPrompt && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowKeyPrompt(false)}
+          >
+            <motion.div
+              initial={{ y: 100 }}
+              animate={{ y: 0 }}
+              exit={{ y: 100 }}
+              onClick={e => e.stopPropagation()}
+              className="w-full max-w-lg bg-white dark:bg-neutral-900 rounded-t-3xl p-6 pb-12"
+            >
+              <div className="w-10 h-1 bg-neutral-200 dark:bg-neutral-700 rounded-full mx-auto mb-5" />
+              <p className="font-extrabold text-lg mb-1">Connect your AI</p>
+              <p className="text-sm text-neutral-400 mb-4">
+                Paste your Anthropic API key below. It's saved only on this device and never leaves your browser.
+              </p>
+              <input
+                autoFocus
+                type="password"
+                value={keyInput}
+                onChange={e => setKeyInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleSaveKey()}
+                placeholder="sk-ant-api03-…"
+                className="w-full rounded-2xl border-2 border-neutral-200 dark:border-neutral-700 bg-transparent px-4 py-3 text-sm font-mono focus:outline-none focus:border-violet-400 mb-2"
+              />
+              <p className="text-[11px] text-neutral-400 mb-4">
+                Get yours at{' '}
+                <span className="text-violet-500 font-medium">console.anthropic.com</span>
+                {' '}→ API Keys
+              </p>
+              <button
+                onClick={handleSaveKey}
+                disabled={!keyInput.trim()}
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white font-bold disabled:opacity-40"
+              >
+                Save & analyze ✨
+              </button>
             </motion.div>
           </motion.div>
         )}
