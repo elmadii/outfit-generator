@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useCloset } from '../hooks/useCloset'
@@ -6,17 +6,51 @@ import ItemCard from '../components/ItemCard'
 import type { Category, ClosetItem } from '../types'
 import { CATEGORIES, CATEGORY_LABEL, CATEGORY_EMOJI, VIBE_EMOJI } from '../types'
 import { colorHex } from '../lib/colorTheory'
+import { tagItem, getApiKey } from '../lib/ai'
 
 type SortBy = 'newest' | 'name' | 'category'
 
 export default function ClosetPage() {
   const navigate = useNavigate()
-  const { items, deleteItem } = useCloset()
+  const { items, deleteItem, updateItem } = useCloset()
   const [search, setSearch] = useState('')
   const [filterCat, setFilterCat] = useState<Category | 'all'>('all')
   const [sortBy, setSortBy] = useState<SortBy>('newest')
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [detail, setDetail] = useState<ClosetItem | null>(null)
+
+  // Retag state
+  const [retagging, setRetagging] = useState(false)
+  const [retagProgress, setRetagProgress] = useState<{ done: number; total: number; current: string } | null>(null)
+  const retagAbort = useRef<AbortController | null>(null)
+
+  const retagAll = useCallback(async () => {
+    if (!getApiKey()) {
+      alert('Add your AI key in My Outfits first (tap ✨ Style profile → API key).')
+      return
+    }
+    retagAbort.current = new AbortController()
+    setRetagging(true)
+    setRetagProgress({ done: 0, total: items.length, current: '' })
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i]
+      if (retagAbort.current.signal.aborted) break
+      setRetagProgress({ done: i, total: items.length, current: item.name })
+      try {
+        const result = await tagItem(item.image, retagAbort.current.signal)
+        updateItem(item.id, {
+          name: result.suggestedName || item.name,
+          vibes: result.vibes.length ? result.vibes as ClosetItem['vibes'] : item.vibes,
+          colors: result.colors.length ? result.colors : item.colors,
+          aiDescription: result.description || item.aiDescription,
+        })
+      } catch {
+        // skip failed items silently
+      }
+    }
+    setRetagging(false)
+    setRetagProgress(null)
+  }, [items, updateItem])
 
   const filtered = useMemo(() => {
     let list = [...items]
@@ -55,13 +89,61 @@ export default function ClosetPage() {
           </h1>
           <p className="text-xs text-stone-400 mt-0.5">{items.length} items</p>
         </div>
-        <Link
-          to="/upload"
-          className="px-4 py-2.5 rounded-2xl bg-fuchsia-500 text-white text-xs font-bold shadow-md active:scale-95 transition-transform"
-        >
-          + Add piece
-        </Link>
+        <div className="flex items-center gap-2">
+          {items.length > 0 && !retagging && (
+            <button
+              onClick={retagAll}
+              className="px-3 py-2 rounded-2xl text-xs font-bold text-white shadow-sm active:scale-95 transition-transform"
+              style={{ background: '#7B3428' }}
+            >
+              ✨ Retag all
+            </button>
+          )}
+          {retagging && (
+            <button
+              onClick={() => retagAbort.current?.abort()}
+              className="px-3 py-2 rounded-2xl text-xs font-bold border-2 border-stone-200 text-stone-500 active:scale-95 transition-transform"
+            >
+              Stop
+            </button>
+          )}
+          <Link
+            to="/upload"
+            className="px-4 py-2.5 rounded-2xl bg-fuchsia-500 text-white text-xs font-bold shadow-md active:scale-95 transition-transform"
+          >
+            + Add piece
+          </Link>
+        </div>
       </div>
+
+      {/* Retag progress */}
+      <AnimatePresence>
+        {retagProgress && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="px-5 mb-3"
+          >
+            <div className="bg-white dark:bg-stone-900 rounded-2xl px-4 py-3 shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold text-stone-700 dark:text-stone-300">
+                  ✨ Retagging {retagProgress.current && `— ${retagProgress.current}`}
+                </p>
+                <p className="text-xs text-stone-400">{retagProgress.done}/{retagProgress.total}</p>
+              </div>
+              <div className="h-1.5 bg-stone-100 dark:bg-stone-800 rounded-full overflow-hidden">
+                <motion.div
+                  className="h-full rounded-full"
+                  style={{ background: '#7B3428' }}
+                  animate={{ width: `${(retagProgress.done / retagProgress.total) * 100}%` }}
+                  transition={{ ease: 'linear' }}
+                />
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* search */}
       <div className="px-5 mb-3">
