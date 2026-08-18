@@ -1,7 +1,7 @@
 import type { ClosetItem } from '../types'
 
 const KEY_STORE = 'fitcheck:anthropic-key'
-const API_URL = 'https://api.anthropic.com/v1/messages'
+const API_URL = '/api/analyze'
 const MODEL = 'claude-haiku-4-5-20251001'
 
 export function getApiKey(): string | null {
@@ -52,10 +52,8 @@ Keep each section to 2–3 sharp sentences. Be real, not fluffy. Think best frie
   const response = await fetch(API_URL, {
     method: 'POST',
     headers: {
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
+      'x-anthropic-key': apiKey,
       'content-type': 'application/json',
-      'anthropic-dangerous-direct-browser-ipc': 'true',
     },
     body: JSON.stringify({
       model: MODEL,
