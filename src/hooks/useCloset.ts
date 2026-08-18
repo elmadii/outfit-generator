@@ -9,6 +9,8 @@ interface NewItem {
   name: string
   colors: string[]
   vibes: VibeTag[]
+  customVibes?: string[]
+  aiDescription?: string
   notes?: string
 }
 

@@ -256,7 +256,7 @@ export default function AnchorPage() {
                         <img src={item.image} alt={item.name} className="w-full h-full object-contain" />
                         {/* Anchor highlight */}
                         {id === anchor.id && (
-                          <div className="absolute inset-0 ring-2 ring-inset pointer-events-none rounded-sm" style={{ ringColor: '#7B3428' }}>
+                          <div className="absolute inset-0 pointer-events-none rounded-sm" style={{ boxShadow: 'inset 0 0 0 2px #7B3428' }}>
                             <div className="absolute top-1 right-1 w-4 h-4 rounded-full flex items-center justify-center text-white text-[8px] font-bold" style={{ background: '#7B3428' }}>
                               🔒
                             </div>
