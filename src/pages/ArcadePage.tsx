@@ -1,10 +1,10 @@
-import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useCloset } from '../hooks/useCloset'
 import { useSaved } from '../hooks/useSaved'
 import { outfitColorScore } from '../lib/colorTheory'
 import { storage } from '../lib/storage'
-import type { ClosetItem, GeneratedOutfit, OutfitPick } from '../types'
+import type { GeneratedOutfit, OutfitPick } from '../types'
 import { v4 as uuid } from 'uuid'
 import { Link } from 'react-router-dom'
 
@@ -148,7 +148,7 @@ export default function ArcadePage() {
     }))
   }
 
-  function onItemPointerUp(e: React.PointerEvent, id: string) {
+  function onItemPointerUp(_e: React.PointerEvent, id: string) {
     const d = dragRef.current
     if (!d || d.id !== id) return
     if (!d.moved) setSelectedId(prev => prev === id ? null : id)

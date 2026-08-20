@@ -8,7 +8,7 @@ import { storage } from '../lib/storage'
 import { fetchWeather, weatherStyleHint } from '../lib/weather'
 import type { WeatherData } from '../lib/weather'
 import type { GeneratedOutfit, ClosetItem, VibeTag } from '../types'
-import { CATEGORY_LABEL, CATEGORY_EMOJI, VIBE_EMOJI } from '../types'
+import { CATEGORY_LABEL, VIBE_EMOJI } from '../types'
 import { colorHex, paletteLabel } from '../lib/colorTheory'
 import OutfitCollage from '../components/OutfitCollage'
 
