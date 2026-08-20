@@ -10,6 +10,7 @@ import type { WeatherData } from '../lib/weather'
 import type { GeneratedOutfit, ClosetItem, VibeTag } from '../types'
 import { CATEGORY_LABEL, CATEGORY_EMOJI, VIBE_EMOJI } from '../types'
 import { colorHex, paletteLabel } from '../lib/colorTheory'
+import OutfitCollage from '../components/OutfitCollage'
 
 /* ── Why breakdown ── */
 function WhyBreakdown({ outfit, itemMap }: { outfit: GeneratedOutfit; itemMap: Map<string, ClosetItem> }) {
@@ -376,19 +377,8 @@ export default function GeneratePage() {
                     )}
                   </div>
 
-                  {/* photo grid with category labels */}
-                  <div className={`grid gap-0.5 ${outfitItems.length <= 4 ? 'grid-cols-2' : 'grid-cols-3'}`}>
-                    {outfitItems.map(({ item, cat }) => (
-                      <div key={item.id} className="relative aspect-square overflow-hidden bg-stone-100 dark:bg-stone-800">
-                        <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
-                        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-stone-900/80 to-transparent py-1.5 px-2">
-                          <p className="text-[9px] font-bold text-white uppercase tracking-wider">
-                            {CATEGORY_EMOJI[cat as keyof typeof CATEGORY_EMOJI] || ''} {CATEGORY_LABEL[cat as keyof typeof CATEGORY_LABEL] || cat}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  {/* superimposed flat-lay collage */}
+                  <OutfitCollage items={outfitItems} />
 
                   {/* item names */}
                   <div className="px-4 py-3 flex flex-wrap gap-1.5">

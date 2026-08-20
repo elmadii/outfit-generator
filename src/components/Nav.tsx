@@ -7,6 +7,7 @@ const LINKS = [
   { to: '/arcade', label: '🎮', title: 'Arcade' },
   { to: '/saved', label: '❤️', title: 'Outfits' },
   { to: '/planner', label: '📅', title: 'Calendar' },
+  { to: '/settings', label: '⚙️', title: 'Settings' },
 ]
 
 export default function Nav() {

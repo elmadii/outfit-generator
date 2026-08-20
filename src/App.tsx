@@ -10,6 +10,7 @@ import ArcadePage from './pages/ArcadePage'
 import SavedPage from './pages/SavedPage'
 import PlannerPage from './pages/PlannerPage'
 import AnchorPage from './pages/AnchorPage'
+import SettingsPage from './pages/SettingsPage'
 
 export default function App() {
   // Apply stored theme on first mount
@@ -30,6 +31,7 @@ export default function App() {
         <Route path="/saved" element={<SavedPage />} />
         <Route path="/planner" element={<PlannerPage />} />
         <Route path="/anchor" element={<AnchorPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
       </Routes>
       <Nav />
     </div>
